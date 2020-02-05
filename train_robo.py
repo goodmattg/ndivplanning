@@ -14,7 +14,10 @@ from torch.utils import data
 from torch.nn import functional as F
 from data_utils import *
 from vis_tools import *
-from model_utils import *
+
+from models.action_decoder import Decoder
+from models.action_discriminator import Discriminator
+
 from torchvision.utils import save_image
 from time import time
 from diversity import VGG
@@ -67,12 +70,13 @@ loader = torch.utils.data.DataLoader(
     worker_init_fn=robonet_worker_init_fn,
 )
 
-
 # Models
+# TODO: Switch to not device
 decoder, discriminator = (
     Decoder(noise_dim=noise_dim).to(DEVICE),
     Discriminator().to(DEVICE),
 )
+
 decoder.weight_init(mean=0.0, std=0.02)
 discriminator.weight_init(mean=0.0, std=0.02)
 
@@ -99,7 +103,6 @@ for epoch in range(num_epochs):
             states.squeeze(0).to(DEVICE).float(),
         )
 
-        pdb.set_trace()
         images = norm(images)
 
         ########## Encode Current State ########
