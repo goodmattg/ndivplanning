@@ -14,7 +14,7 @@ from .argparse_util import *
 
 
 class PushDataset(torch.utils.data.Dataset):
-    def __init__(self, datadir, seq_start=0, seq_length=20):
+    def __init__(self, datadir, seq_start=0, seq_length=15):
         self.datadir = datadir
         self.files = listdir_nohidden(datadir)
         self.seq_start = seq_start
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     ds = PushDataset(args.datadir)
 
-    images, states, actions = ds.__getitem__(3)
+    images, states, actions = ds.__getitem__(843)
 
     grid_img = make_grid(images, nrow=5)
     plt.imshow(grid_img.permute(1, 2, 0))

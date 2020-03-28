@@ -99,7 +99,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_trajectory_per_file",
         type=int,
-        default=10000,
+        default=1000,
         help="number of trajectories to include in each file",
     )
 
