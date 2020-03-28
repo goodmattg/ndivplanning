@@ -88,4 +88,3 @@ def compute_pairwise_divergence(recodes, codes):
     x_delta = compute_pair_distance(torch.squeeze(recodes).view(N, k, -1))
     div = F.relu(z_delta * 0.8 - x_delta)
     return div.sum()
-

@@ -1,0 +1,3 @@
+[submodule "hindsight_experience_replay"]
+	path = hindsight_experience_replay
+	url = https://github.com/TianhongDai/hindsight-experience-replay.git
