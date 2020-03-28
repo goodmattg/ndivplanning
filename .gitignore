@@ -107,7 +107,7 @@ ENV/
 *.tiff
 
 # Data files
-# *.h5
+*.h5
 
 # Notebooks
 *.ipynb
