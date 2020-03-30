@@ -48,3 +48,41 @@ class Encoder(nn.Module):
         feat_6 = feat_6.view(feat_6.size(0), -1)
         # print('feat_6: ', feat_6.shape)
         return feat_6
+
+
+# G(z)
+class Decoder(nn.Module):
+    # initializers
+    def __init__(self, d=128):
+        super(Decoder, self).__init__()
+        self.deconv1 = nn.ConvTranspose2d(128, 1024, 4, 1, 0)
+        self.deconv1_bn = nn.BatchNorm2d(1024)
+
+        self.deconv2 = nn.ConvTranspose2d(1024, 512, 4, 2, 1)
+        self.deconv2_bn = nn.BatchNorm2d(512)
+
+        self.deconv3 = nn.ConvTranspose2d(512, 256, 4, 2, 1)
+        self.deconv3_bn = nn.BatchNorm2d(256)
+
+        self.deconv4 = nn.ConvTranspose2d(256, 128, 4, 2, 1)
+        self.deconv4_bn = nn.BatchNorm2d(128)
+
+        self.deconv5 = nn.ConvTranspose2d(128, 64, 4, 2, 1)
+        self.deconv5_bn = nn.BatchNorm2d(64)
+
+        self.deconv6 = nn.ConvTranspose2d(64, 3, 4, 2, 1)
+
+    # weight_init
+    def weight_init(self, mean, std):
+        for m in self._modules:
+            normal_init(self._modules[m], mean, std)
+
+    # forward method
+    def forward(self, z):
+        up_1 = F.relu(self.deconv1_bn(self.deconv1(z)))
+        up_2 = F.relu(self.deconv2_bn(self.deconv2(up_1)))
+        up_3 = F.relu(self.deconv3_bn(self.deconv3(up_2)))
+        up_4 = F.relu(self.deconv4_bn(self.deconv4(up_3)))
+        up_5 = F.relu(self.deconv5_bn(self.deconv5(up_4)))
+        up_6 = F.tanh(self.deconv6(up_5))
+        return up_6

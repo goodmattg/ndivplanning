@@ -55,6 +55,9 @@ def generate_trajectory(env, actor_network, args):
         image = render(env)
         im_byte_arr = io.BytesIO()
         im = Image.fromarray(image)
+
+        im = im.resize(args.image_shape, Image.LANCZOS)
+
         im.save(im_byte_arr, format="jpeg", quality=95)
 
         image_frames.append(im_byte_arr.getvalue())
@@ -115,6 +118,14 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Plain-text label to start filename. i.e. default is file_0001",
+    )
+
+    parser.add_argument(
+        "--image-shape",
+        nargs=2,
+        type=int,
+        default=(500, 500),
+        help="Output image shape (WIDTH, HEIGHT) via PIL.Image.resize()",
     )
 
     parser.add_argument(
