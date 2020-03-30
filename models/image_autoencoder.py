@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import pdb
 
 
 def normal_init(m, mean, std):
@@ -11,7 +12,7 @@ def normal_init(m, mean, std):
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, d=16):
         super(Encoder, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, 3, 2, 1)
         self.conv1_bn = nn.BatchNorm2d(64)
@@ -44,9 +45,7 @@ class Encoder(nn.Module):
         feat_5 = F.relu((self.conv5(feat_4)))
         # print('feat_5: ', feat_5.shape)
         feat_6 = self.conv6(feat_5)
-        # print('feat_6: ', feat_6.shape)
-        feat_6 = feat_6.view(feat_6.size(0), -1)
-        # print('feat_6: ', feat_6.shape)
+
         return feat_6
 
 
@@ -86,3 +85,13 @@ class Decoder(nn.Module):
         up_5 = F.relu(self.deconv5_bn(self.deconv5(up_4)))
         up_6 = F.tanh(self.deconv6(up_5))
         return up_6
+
+
+if __name__ == "__main__":
+
+    x = torch.ones((15, 3, 128, 128))
+    encoder, decoder = Encoder(), Decoder()
+    z = encoder(x)
+    x_hat = decoder(z)
+
+    pdb.set_trace()
