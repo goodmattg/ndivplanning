@@ -1,6 +1,6 @@
 Repository for curiosity/generative planning/3d research
 
-This code is all from Lingzhi and Andong Cao paper on generative planning in simulated setting - all credit to them. 
+Credit to Lingzhi and Andong Cao for sharing their code.
 
 ```
 @misc{zhang2019neural,
@@ -11,4 +11,35 @@ This code is all from Lingzhi and Andong Cao paper on generative planning in sim
     archivePrefix={arXiv},
     primaryClass={cs.LG}
 }
+```
+
+Credit to Tianhong Dai for his implementation of HER in OpenAI Gym robotics environments.
+https://github.com/TianhongDai/hindsight-experience-replay
+
+# Getting Started
+
+# Pretrained HER
+
+Download Tianhong Dai's pretrained HER models from:
+https://drive.google.com/open?id=18MEEwweR8Ad1t1yxgTwI1VYmIsVPttXk
+
+```
+mkdir models/her_pretrained/FetchPush-v1
+mv model.pt models/her_pretrained/FetchPush-v1
+```
+
+## Generating trajectories
+
+**Argument documentation found with `python generate_trajectories.py -h`**
+
+To generate trajectories with default arguments (1 file, 1000 trajectories for file, saved to /data):
+```
+python generate_trajectories.py
+```
+
+## View individual trajectory
+
+To view an individual trajectory:
+```
+python -m utils.trajectory_loader _path_to_data_
 ```

@@ -105,3 +105,9 @@ ENV/
 *.gif
 *.png
 *.tiff
+
+# Data files
+*.h5
+
+# Notebooks
+*.ipynb
