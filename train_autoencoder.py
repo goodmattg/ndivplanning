@@ -27,7 +27,7 @@ from models.image_autoencoder import Decoder, Encoder
 port_num = 8082
 gpu_id = 1
 lr_rate = 2e-4
-num_epochs = 3
+num_epochs = 50
 num_sample = 6
 noise_dim = 2
 report_feq = 10
@@ -102,7 +102,7 @@ for epoch in range(num_epochs):
             display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
             display.img_result(state_cur_hat_vis, win=2, caption="state_cur_hat_vis")
 
-    if epoch % 1 == 0:
+    if epoch % 10 == 1:
         if not os.path.exists("models"):
             os.makedirs("models")
         torch.save(encoder, "models/encoder_" + str(epoch) + ".pt")
