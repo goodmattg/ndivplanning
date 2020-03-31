@@ -8,15 +8,17 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from torchvision.transforms import ToTensor
 from torchvision.utils import make_grid
+from torchvision import transforms
 
-from .hdf5_load import bytes_to_tensor
+from .hdf5_load import image_bytes_to_norm_tensor
 from .argparse_util import *
 
 
 class PushDataset(torch.utils.data.Dataset):
-    def __init__(self, datadir, seq_start=0, seq_length=15):
+    def __init__(self, datadir, seq_start=0, seq_length=15, transform=None):
         self.datadir = datadir
         self.files = listdir_nohidden(datadir)
+        self.transform = transform
         self.seq_start = seq_start
         self.seq_length = seq_length
 
@@ -44,9 +46,10 @@ class PushDataset(torch.utils.data.Dataset):
         with h5py.File(self.files[file_index], "r") as f:
             seq = f["trajectory_{:05d}".format(seq_index)]
 
+            # Load image trajectory from byes. Normalize to range [-1, 1] (as per ref. implementation)
             images = torch.stack(
                 [
-                    bytes_to_tensor(b)
+                    image_bytes_to_norm_tensor(b)
                     for b in seq["images"][
                         self.seq_start : (self.seq_start + self.seq_length)
                     ]
@@ -58,6 +61,10 @@ class PushDataset(torch.utils.data.Dataset):
             actions = torch.from_numpy(
                 seq["actions"][self.seq_start : (self.seq_start + self.seq_length)]
             )
+
+            # Optional. Additional image transforms
+            if self.transform:
+                images = self.transform(images)
 
         return images, states, actions
 
@@ -74,9 +81,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    ds = PushDataset(args.datadir)
+    dataset = PushDataset(args.datadir)
 
-    images, states, actions = ds.__getitem__(843)
+    # Dataloader
+    loader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
+
+    # for batch in loader:
+    #     blah = batch[0]
+    #     break
+
+    # print(blah.size())
+    # blah = blah.view(-1, *(blah.size()[2:]))
+    # print(blah.size())
+
+    images, states, actions = dataset.__getitem__(2)
 
     grid_img = make_grid(images, nrow=5)
     plt.imshow(grid_img.permute(1, 2, 0))
