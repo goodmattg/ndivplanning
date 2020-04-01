@@ -100,6 +100,7 @@ ENV/
 
 # Development environment
 *.code-workspace
+*.vscode
 
 # Images, gifs, media (unless whitelisted)
 *.gif
