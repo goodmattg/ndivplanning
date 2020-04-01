@@ -1,19 +1,11 @@
 import warnings
 
-import sys
-ros_path = '/opt/ros/kinetic/lib/python2.7/dist-packages'
-
-if ros_path in sys.path:
-    sys.path.remove(ros_path)
-
 warnings.filterwarnings("ignore")
 import argparse
 import torch
 import os
 import numpy as np
 import pdb
-import matplotlib.pyplot as plt
-from PIL import Image
 
 from torch import nn, optim
 from torch.utils import data
@@ -30,6 +22,7 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
 from models.image_autoencoder import Decoder, Encoder
+
 # Configurations and Hyperparameters
 port_num = 8082
 gpu_id = 1
@@ -37,9 +30,9 @@ lr_rate = 2e-4
 num_epochs = 50
 num_sample = 6
 noise_dim = 2
-report_feq = 1
+report_feq = 10
 
-# display = visualizer(port=port_num)
+display = visualizer(port=port_num)
 
 # Random Initialization
 torch.manual_seed(1)
@@ -55,9 +48,8 @@ def norm(image):
 
 
 # Dataloader
-gpu_id = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-dataset = PushDataset("data")
-loader = data.DataLoader(dataset, batch_size=8, shuffle=True)
+dataset = PushDataset("128_128_data")
+loader = data.DataLoader(dataset, batch_size=16, shuffle=True)
 
 # Models
 encoder = Encoder().to(gpu_id)
@@ -106,20 +98,9 @@ for epoch in range(num_epochs):
             state_cur_hat_vis = (
                 denorm(state_cur_hat[0]).detach().cpu().numpy().astype(np.uint8)
             )
-            
-            state_cur_vis = np.transpose(state_cur_vis, (1, 2, 0))
-            state_cur_hat_vis = np.transpose(state_cur_hat_vis, (1, 2, 0))
-            print("TEMP",state_cur_hat_vis.shape)
-            # plt.clf()
-            # plt.imshow(state_cur_vis)
-            # plt.show()
-            # plt.imshow(state_cur_hat_vis)
-            img = Image.fromarray(state_cur_hat_vis,'RGB')
-            img.show()
-            print("should plot now")
-            # plt.show()
-            # display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
-            # display.img_result(state_cur_hat_vis, win=2, caption="state_cur_hat_vis")
+
+            display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
+            display.img_result(state_cur_hat_vis, win=2, caption="state_cur_hat_vis")
 
     if epoch % 10 == 1:
         if not os.path.exists("models"):
