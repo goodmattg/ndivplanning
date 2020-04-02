@@ -2,19 +2,22 @@ import cv2
 import numpy as np
 import pdb
 import plotly
+import visdom
+
 from plotly.tools import mpl_to_plotly
 from matplotlib import pyplot as plt
+
 
 plt.switch_backend("agg")
 
 
 class visualizer(object):
-    def __init__(self, port=8000, scatter_size=[[-1, 1], [-1, 1]]):
-        import visdom
-
+    def __init__(self, port=8000, scatter_size=[[-1, 1], [-1, 1]], env_name="main"):
+        self.env = env_name
         self.vis = visdom.Visdom(port=port)
         (self.x_min, self.x_max), (self.y_min, self.y_max) = scatter_size
         self.counter = 0
+        self.plots = {}
 
     def img_result(self, img_list, caption="view", win=1):
         self.vis.images(
@@ -24,32 +27,28 @@ class visualizer(object):
     def plot_img_255(self, img, caption="view", win=1):
         self.vis.image(img, win=win, opts={"caption": caption})
 
-    # Occupies window 0
-    def plot_error(self, errors, win=0, id_val=1):
-        if not hasattr(self, "plot_data"):
-            self.plot_data = [{"X": [], "Y": [], "legend": list(errors.keys())}]
-        elif len(self.plot_data) != id_val:
-            self.plot_data.append({"X": [], "Y": [], "legend": list(errors.keys())})
-        id_val -= 1
-        self.plot_data[id_val]["X"].append(self.counter)
-        self.plot_data[id_val]["Y"].append(
-            [errors[k] for k in self.plot_data[id_val]["legend"]]
-        )
-        self.vis.line(
-            X=np.stack(
-                [np.array(self.plot_data[id_val]["X"])]
-                * len(self.plot_data[id_val]["legend"]),
-                1,
-            ),
-            Y=np.array(self.plot_data[id_val]["Y"]),
-            opts={
-                "legend": self.plot_data[id_val]["legend"],
-                "xlabel": "epoch",
-                "ylabel": "loss",
-            },
-            win=win,
-        )
-        self.counter += 1
+    def plot(self, var_name, split_name, title_name, x, y):
+        if var_name not in self.plots:
+            self.plots[var_name] = self.vis.line(
+                X=np.array([x, x]),
+                Y=np.array([y, y]),
+                env=self.env,
+                opts=dict(
+                    legend=[split_name],
+                    title=title_name,
+                    xlabel="Epochs",
+                    ylabel=var_name,
+                ),
+            )
+        else:
+            self.vis.line(
+                X=np.array([x]),
+                Y=np.array([y]),
+                env=self.env,
+                win=self.plots[var_name],
+                name=split_name,
+                update="append",
+            )
 
     def plot_quiver_img(self, img, flow, win=0, caption="view"):
         fig, ax = plt.subplots(1)
@@ -66,4 +65,3 @@ class visualizer(object):
 if __name__ == "__main__":
 	print("Main")
 """
-
