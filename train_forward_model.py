@@ -40,8 +40,19 @@ num_sample = 6
 noise_dim = 2
 report_feq = 10
 
+display = visualizer(port=port_num)
+
 torch.manual_seed(1)
 np.random.seed(1)
+
+
+def denorm(tensor):
+    return ((tensor + 1.0) / 2.0) * 255.0
+
+
+def norm(image):
+    return (image / 255.0 - 0.5) * 2.0
+
 
 # Dataloader
 # gpu_id = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -73,6 +84,7 @@ for epoch in range(num_epochs):
 
     for i, inputs in enumerate(loader):
         images, _, actions = inputs
+        images, actions = images.to(gpu_id), actions.to(gpu_id)
 
         for image_num in range(dataset.seq_length - 1):
             state_cur = images[:, image_num]
