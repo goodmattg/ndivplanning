@@ -105,5 +105,6 @@ for epoch in range(num_epochs):
     if epoch % 10 == 1:
         if not os.path.exists("models"):
             os.makedirs("models")
+
         torch.save(encoder, "models/encoder_" + str(epoch) + ".pt")
         torch.save(decoder, "models/decoder_" + str(epoch) + ".pt")
