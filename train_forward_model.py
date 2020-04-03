@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
-from models.forward_encoder import Decoder, Encoder
+from models.forward_autoencoder import Decoder, Encoder
 
 # Configurations and Hyperparameters
 port_num = 8082
