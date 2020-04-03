@@ -65,8 +65,7 @@ dataset = PushDataset("128_128_data", seq_length=16)
 loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # Use pre-trained encoder
-encoder = Encoder().to(gpu_id)
-encoder.load_state_dict(torch.load("models/autoencoder_pretrained/encoder.pt"))
+encoder = torch.load("models/autoencoder_pretrained/encoder.pt").to(gpu_id)
 encoder.eval()
 
 decoder = Decoder(noise_dim=noise_dim).to(gpu_id)
