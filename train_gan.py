@@ -34,16 +34,13 @@ batch_size = 8
 # Number of discriminator steps per generator step
 discr_steps_per_gen = 3
 # Number of training stages
-num_training_stages = 10
+epochs_per_stage = 25
 
 display = visualizer(port=port_num)
 
 # Random Initialization
 torch.manual_seed(1)
 np.random.seed(1)
-
-# TODO: This should only save parameters for the ActionDecoder and Discriminator
-# FIXME: Shouldn't the Discriminator take in state and action? It looks like action is unused
 
 
 def diverse_sampling(code):
@@ -63,17 +60,13 @@ def norm(image):
 
 
 # Dataloader
-gpu_id = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# gpu_id = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 dataset = PushDataset("128_128_data", seq_length=16)
 loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # Use pre-trained encoder
 encoder = Encoder().to(gpu_id)
-# print(gpu_id == "cpu")
-# print(gpu_id)
-# FIXME: Before pushing to master, this should be default...
-if gpu_id == "cuda:0":
-    encoder.load_state_dict(torch.load("models/autoencoder_pretrained/encoder.pt"))
+encoder.load_state_dict(torch.load("models/autoencoder_pretrained/encoder.pt"))
 encoder.eval()
 
 decoder = Decoder(noise_dim=noise_dim).to(gpu_id)
@@ -93,9 +86,7 @@ G_optimizer = optim.Adam(
 )
 
 D_optimizer = optim.Adam(discriminator.parameters(), lr=lr_rate, betas=(0.5, 0.999))
-scheduler = StepLR(
-    G_optimizer, step_size=(num_epochs // num_training_stages), gamma=0.9
-)
+scheduler = StepLR(G_optimizer, step_size=epochs_per_stage, gamma=0.9)
 
 min_pred_error = np.inf
 for epoch in range(num_epochs):
@@ -201,16 +192,13 @@ for epoch in range(num_epochs):
         "pairwise_div", "loss", "Pairwise Divergence Loss", epoch, pair_div_loss_avg
     )
 
-    if (
-        epoch % (num_epochs // num_training_stages)
-        == (num_epochs // num_training_stages) - 1
-    ):
+    if epoch % epochs_per_stage == epochs_per_stage - 1:
 
-        if not os.path.exists("models"):
-            os.makedirs("models")
+        if not os.path.exists("models/gan"):
+            os.makedirs("models/gan")
 
-        torch.save(discriminator, "models/gan_discriminator_" + str(epoch) + ".pt")
-        torch.save(decoder, "models/gan_decoder_" + str(epoch) + ".pt")
+        torch.save(discriminator, "models/gan/gan_discriminator_" + str(epoch) + ".pt")
+        torch.save(decoder, "models/gan/gan_decoder_" + str(epoch) + ".pt")
 
     # if step % report_feq == 0:
 
