@@ -90,11 +90,10 @@ class Discriminator(nn.Module):
     # initializers
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.fc1 = nn.Linear(4, 64)
+        self.fc1 = nn.Linear(256 + 4, 64)
         self.fc2 = nn.Linear(64, 128)
         self.fc3 = nn.Linear(128, 256)
         self.fc4 = nn.Linear(256, 1)
-        self.img_encoder = Encoder()
 
     # weight_init
     def weight_init(self, mean, std):
@@ -102,10 +101,9 @@ class Discriminator(nn.Module):
             normal_init(self._modules[m], mean, std)
 
     # forward method
-    def forward(self, action, state):
-        state_code = self.img_encoder(state)
+    def forward(self, action, state_code):
         state_action = torch.cat([action, state_code], dim=1)
-        h = F.leaky_relu(self.fc1(action))
+        h = F.leaky_relu(self.fc1(state_action))
         h = F.leaky_relu(self.fc2(h))
         h = F.leaky_relu(self.fc3(h))
         z = self.fc4(h)
