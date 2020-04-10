@@ -31,7 +31,7 @@ noise_dim = 2
 report_feq = 10
 batch_size = 8
 
-# display = visualizer(port=port_num)
+display = visualizer(port=port_num)
 
 # Random Initialization
 torch.manual_seed(1)
@@ -132,9 +132,9 @@ for i, inputs in enumerate(loader):
         state_fut_hat_vis = [
             denorm(state_fut_hat[0]).detach().cpu().numpy().astype(np.uint8)
         ]
-        # display.img_result(state_cur_hat_vis, win=1, caption="state_cur_vis")
-        # display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
-        # display.img_result(state_fut_hat_vis, win=3, caption="state_fut_hat_vis")
+        display.img_result(state_cur_hat_vis, win=1, caption="state_cur_vis")
+        display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
+        display.img_result(state_fut_hat_vis, win=3, caption="state_fut_hat_vis")
     action_error = mse(actions,action_hat)
     action_error_sum += action_error
 avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
