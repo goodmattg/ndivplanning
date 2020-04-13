@@ -6,6 +6,8 @@ from functools import reduce
 import pdb
 import glob
 
+from dotmap import DotMap
+
 
 def get_from_dict(dictionary, key_list):
     """Get value from dictionary with arbitrary depth via descending list of keys."""
@@ -55,3 +57,15 @@ def dir_exists_read_privileges(prospective_dir):
             "Directory: '{0}' is not readable".format(dir_path)
         )
     return dir_path
+
+
+def override_dotmap(args: argparse.Namespace, config_key: str) -> DotMap:
+    """Recursively override keys in a DotMap given CLI arguments """
+    cfg = getattr(args, config_key)
+
+    # Place all CLI arguments as top-level keys in config
+    for arg in vars(args):
+        if arg is not config_key:
+            cfg[arg] = getattr(args, arg)
+
+    return cfg
