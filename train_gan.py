@@ -5,6 +5,7 @@ import argparse
 import os
 import pdb
 import torch
+import logging
 
 import numpy as np
 import diversity as div
@@ -192,8 +193,10 @@ def train(config):
         G_loss_avg = G_loss_sum / len(loader)
         pair_div_loss_avg = pair_div_loss_sum / len(loader)
 
-        print(
-            epoch, "D: ", D_loss_avg, "G: ", G_loss_avg, "div: ", pair_div_loss_avg,
+        logging.info(
+            "{}, D: {:4f}, G: {:4f}, div: {:4f}".format(
+                epoch, D_loss_avg, G_loss_avg, pair_div_loss_avg
+            )
         )
 
         display.plot("gan", "discriminator", "GAN Loss", epoch, D_loss_avg)
