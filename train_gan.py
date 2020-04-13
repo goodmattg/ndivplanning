@@ -72,7 +72,7 @@ def train(config):
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Use pre-trained encoder
-    encoder = torch.load(config.encoder_model_path).to(gpu_id)
+    encoder = torch.load(config.image_encoder_model_path).to(gpu_id)
     encoder.eval()
 
     decoder = Decoder(noise_dim=noise_dim).to(gpu_id)

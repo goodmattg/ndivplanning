@@ -8,6 +8,7 @@ import torch
 import sys
 import numpy as np
 import diversity as div
+import logging
 
 from torch import nn, optim
 from torch.utils import data
@@ -19,32 +20,10 @@ from utils.trajectory_loader import PushDataset
 from time import time
 from dotmap import DotMap
 
-from models.forward_encoder import Decoder, Encoder
-
-# Configurations and Hyperparameters
-port_num = 8085
-# gpu_id = 'cpu'
-gpu_id = 1
-lr_rate = 2e-4
-num_epochs = 100
-num_sample = 1
-noise_dim = 2
-report_feq = 10
-batch_size = 8
-
-display = visualizer(port=port_num)
-
-# Random Initialization
-torch.manual_seed(1)
-np.random.seed(1)
-
-
-def diverse_sampling(code):
-    N, C = code.size(0), code.size(1)
-    noise = torch.FloatTensor(N, num_sample, noise_dim).uniform_().to(gpu_id)
-    code = (code[:, None, :]).expand(-1, num_sample, -1)
-    code = torch.cat([code, noise], dim=2)
-    return code, noise
+from argparse import ArgumentParser, ArgumentTypeError
+from utils.cli_arguments.common_arguments import add_common_arguments
+from utils.argparse_util import override_dotmap
+from utils.file import make_paths_absolute
 
 
 def denorm(tensor):
@@ -53,25 +32,6 @@ def denorm(tensor):
 
 def norm(image):
     return (image / 255.0 - 0.5) * 2.0
-
-
-dataset = PushDataset("128_128_data", seq_length=16)
-loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-# Loading all the required Models : image_autoencoder,
-# image_encoder = torch.load("Models/image_autoencoder/encoder.pt",map_location=torch.device('cpu'))
-image_encoder = torch.load("Models/image_autoencoder/encoder.pt").to(gpu_id)
-image_encoder.eval()
-
-# fwd_model_encoder = torch.load("Models/forward_model/forward_encoder.pt",map_location=torch.device('cpu'))
-fwd_model_encoder = torch.load("Models/forward_model/forward_encoder.pt").to(gpu_id)
-fwd_model_encoder.eval()
-
-fwd_model_decoder = torch.load("Models/forward_model/forward_decoder.pt").to(gpu_id)
-fwd_model_decoder.eval()
-
-generator = torch.load("Models/gan/gan_decoder.pt").to(gpu_id)
-generator.eval()
 
 
 def evaluate(
@@ -100,17 +60,42 @@ def evaluate(
     fwd_model_decoder.eval()
     generator.eval()
 
+    # Configurations and Hyperparameters
+    random_seed = config.random_seed
+    num_sample = config.evaluation.num_sample
+    noise_dim = config.evaluation.noise_dim
+    batch_size = config.evaluation.batch_size
+
+    gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
+
+    if torch.cuda.is_available():
+        display = visualizer(port=config.log_port)
+
+    # Random Initialization
+    torch.manual_seed(random_seed)
+    np.random.seed(random_seed)
+
+    def diverse_sampling(code):
+        N, C = code.size(0), code.size(1)
+        noise = torch.FloatTensor(N, num_sample, noise_dim).uniform_().to(gpu_id)
+        code = (code[:, None, :]).expand(-1, num_sample, -1)
+        code = torch.cat([code, noise], dim=2)
+        return code, noise
+
     # Initialize Loss
     l1, mse, bce = nn.L1Loss(), nn.MSELoss(), nn.BCELoss()
     step = 0
     action_error_sum = 0
+
     for i, inputs in enumerate(loader):
+
         images, states, actions = inputs
         images, states, actions = (
             images.float().to(gpu_id),
             states.float().to(gpu_id),
             actions.float().to(gpu_id),
         )
+
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
@@ -135,14 +120,14 @@ def evaluate(
         action_hat = action_hat.view(batch_size, -1, 4)
         state_cur_fwd = state_cur[:, 0]
         image_error_sum = 0
-        print(actions.shape, action_hat.shape)
+
         for image_num in range(dataset.seq_length - 1):
             if image_num != dataset.seq_length - 2:
                 state_fut = state_cur[:, image_num + 1]
             else:
                 state_fut = state_target
             code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-            print(action_hat.shape)
+
             state_action_concate = torch.cat(
                 [code_fwd, action_hat[:, image_num]], dim=1
             )
@@ -151,30 +136,23 @@ def evaluate(
             state_cur_fwd = state_fut_hat
 
             image_error = mse(state_fut_hat, state_fut)
+            # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
 
-        if step % report_feq == 0:
-            state_cur_vis = [
-                denorm(state_cur_fwd[0]).detach().cpu().numpy().astype(np.uint8)
-            ]
-            state_fut_vis = [
-                denorm(state_fut[0]).detach().cpu().numpy().astype(np.uint8)
-            ]
-            state_fut_hat_vis = [
-                denorm(state_fut_hat[0]).detach().cpu().numpy().astype(np.uint8)
-            ]
-            display.img_result(state_cur_hat_vis, win=1, caption="state_cur_vis")
-            display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
-            display.img_result(state_fut_hat_vis, win=3, caption="state_fut_hat_vis")
-        action_error = mse(actions, action_hat)
+        action_error = mse(
+            torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
+        )
+        # Cumulative action error with diverse samples
         action_error_sum += action_error
+
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
 
+    logging.info("Average reconstruction loss:", avg_action_error)
+    logging.info("Average image loss", avg_image_loss)
+
     return avg_action_error, avg_image_loss
-    print("Average reconstruction loss:", avg_action_error)
-    print("Average image loss", avg_image_loss)
 
 
 # EVALUATION WIHOUT FEEDBACK
@@ -201,3 +179,42 @@ def evaluate(
 # 6. Get the next stage image
 # 7. Go to 3. {repeat for trajectory_length-1}
 # 8. Calculate mean diff b/w Values of actions at each stage with ground truth
+
+if __name__ == "__main__":
+
+    parser = ArgumentParser(description="Interact with your training script")
+    parser = add_common_arguments(parser)
+    namespace = parser.parse_args()
+
+    # Creates composite config from config file and CLI arguments
+    config = override_dotmap(namespace, "config_file")
+    # Converts all filepaths in keys ending with "_path" from relative to absolute filepath
+    config = make_paths_absolute(os.getcwd(), config)
+
+    ################################################
+    # Load pretrained models and dataset loader
+    ################################################
+    gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
+
+    dataset = PushDataset(config.data_path, seq_length=16)
+    loader = data.DataLoader(
+        dataset, batch_size=config.evaluation.batch_size, shuffle=False
+    )
+
+    image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
+    generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
+
+    fwd_model_encoder = torch.load(
+        config.forward_model_encoder_path, map_location=gpu_id
+    )
+    fwd_model_decoder = torch.load(
+        config.forward_model_decoder_path, map_location=gpu_id
+    )
+
+    ################################################
+    # Run evaluation
+    ################################################
+
+    avg_action_error, avg_image_loss = evaluate(
+        image_encoder, fwd_model_encoder, fwd_model_decoder, generator, loader, config
+    )
