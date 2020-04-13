@@ -30,7 +30,7 @@ def load_training_config_file(filename):
     return cfg
 
 
-def make_paths_absolute(dir_, cfg: DotMap) -> DotMap:
+def make_paths_absolute(dir_, cfg: DotMap) -> Dotm:
     """
     Make all values for keys ending with `_path` absolute to dir_.
 

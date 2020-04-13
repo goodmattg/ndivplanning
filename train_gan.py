@@ -54,9 +54,9 @@ def train(config):
     report_feq = config.training.report_feq
     batch_size = config.training.batch_size
     # Number of discriminator steps per generator step
-    discr_steps_per_gen = 3
+    discrim_steps_per_gen = config.training.discrim_steps_per_gen
     # Number of training stages
-    epochs_per_stage = 25
+    epochs_per_stage = config.training.epochs_per_stage
 
     # Random Initialization
     torch.manual_seed(random_seed)
@@ -65,7 +65,8 @@ def train(config):
     display = visualizer(port=config.log_port)
 
     # Dataloader
-    gpu_id = torch.device(gpu_id if torch.cuda.is_available() else "cpu")
+    # FIXME: This messes up on server. Find a way to get working and uncomment.
+    # gpu_id = torch.device(gpu_id if torch.cuda.is_available() else "cpu")
     dataset = PushDataset(config.data_path, seq_length=16)
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
@@ -81,8 +82,6 @@ def train(config):
 
     # Initialize Loss
     l1, mse, bce = nn.L1Loss(), nn.MSELoss(), nn.BCELoss()
-
-    pdb.set_trace()
 
     # Initialize Optimizer
     G_optimizer = optim.Adam(
@@ -154,7 +153,7 @@ def train(config):
             DIV_BATCH_SIZE = num_sample * FLAT_BATCH_SIZE
 
             ################## Train Discriminator ##################
-            for _ in range(discr_steps_per_gen):
+            for _ in range(discrim_steps_per_gen):
 
                 D_loss = nn.BCEWithLogitsLoss()(
                     torch.squeeze(discriminator(action_unsqueeze, codes_unsqueeze)),
