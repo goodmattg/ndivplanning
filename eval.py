@@ -95,7 +95,6 @@ def evaluate(
             states.float().to(gpu_id),
             actions.float().to(gpu_id),
         )
-
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
@@ -120,14 +119,12 @@ def evaluate(
         action_hat = action_hat.view(batch_size, -1, 4)
         state_cur_fwd = state_cur[:, 0]
         image_error_sum = 0
-
         for image_num in range(dataset.seq_length - 1):
             if image_num != dataset.seq_length - 2:
                 state_fut = state_cur[:, image_num + 1]
             else:
                 state_fut = state_target
             code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-
             state_action_concate = torch.cat(
                 [code_fwd, action_hat[:, image_num]], dim=1
             )
