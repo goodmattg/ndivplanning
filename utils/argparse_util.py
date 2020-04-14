@@ -59,13 +59,13 @@ def dir_exists_read_privileges(prospective_dir):
     return dir_path
 
 
-def override_dotmap(args: argparse.Namespace, config_key: str) -> DotMap:
+def override_dotmap(namespace: argparse.Namespace, config_key: str) -> DotMap:
     """Recursively override keys in a DotMap given CLI arguments """
-    cfg = getattr(args, config_key)
+    cfg = getattr(namespace, config_key)
 
     # Place all CLI arguments as top-level keys in config
-    for arg in vars(args):
-        if arg is not config_key:
-            cfg[arg] = getattr(args, arg)
+    for arg in vars(namespace):
+        if arg is not config_key and getattr(namespace, arg) is not None:
+            cfg[arg] = getattr(namespace, arg)
 
     return cfg

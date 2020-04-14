@@ -20,6 +20,7 @@ from models.image_autoencoder import Encoder
 from models.gan import Decoder, Discriminator
 from torchvision.utils import save_image
 from time import time
+from control_evaluation import fetch_push_control_evaluation
 
 from torch.optim.lr_scheduler import StepLR
 
@@ -47,7 +48,6 @@ def train(config):
 
     # Configurations and Hyperparameters
     random_seed = config.random_seed
-    gpu_id = config.gpu_id
     lr_rate = config.training.learning_rate
     num_epochs = config.training.num_epochs
     num_sample = config.training.num_sample
@@ -59,6 +59,10 @@ def train(config):
     # Number of training stages
     epochs_per_stage = config.training.epochs_per_stage
 
+    gpu_id = gpu_id = torch.device(
+        config.gpu_id if torch.cuda.is_available() else "cpu"
+    )
+
     # Random Initialization
     torch.manual_seed(random_seed)
     np.random.seed(random_seed)
@@ -68,16 +72,26 @@ def train(config):
     # Dataloader
     # FIXME: This messes up on server. Find a way to get working and uncomment.
     # gpu_id = torch.device(gpu_id if torch.cuda.is_available() else "cpu")
-    dataset = PushDataset(config.data_path, seq_length=16)
+    dataset = PushDataset(config.train_data_path, seq_length=16)
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    # Use pre-trained encoder
-    encoder = torch.load(config.encoder_model_path).to(gpu_id)
+    # Use pretrained image encoder
+    encoder = torch.load(config.image_encoder_model_path).to(gpu_id)
     encoder.eval()
 
+    # Pretrained forward model for evaluation
+    fwd_model_encoder = torch.load(
+        config.forward_model_encoder_path, map_location=gpu_id
+    )
+    fwd_model_decoder = torch.load(
+        config.forward_model_decoder_path, map_location=gpu_id
+    )
+    fwd_model_encoder.eval()
+    fwd_model_decoder.eval()
+
+    # GAN Components
     decoder = Decoder(noise_dim=noise_dim).to(gpu_id)
     discriminator = Discriminator().to(gpu_id)
-
     decoder.weight_init(mean=0.0, std=0.02)
     discriminator.weight_init(mean=0.0, std=0.02)
 
@@ -96,7 +110,11 @@ def train(config):
 
     min_pred_error = np.inf
     for epoch in range(num_epochs):
+
         D_loss_sum, G_loss_sum, pair_div_loss_sum = 0, 0, 0
+
+        discriminator.train()
+        decoder.train()
 
         for i, inputs in enumerate(loader):
             ########## Inputs ########
@@ -193,9 +211,27 @@ def train(config):
         G_loss_avg = G_loss_sum / len(loader)
         pair_div_loss_avg = pair_div_loss_sum / len(loader)
 
+        ##########################################
+        # Evaluation
+        ##########################################
+
+        # FIXME: This is currently evaluating on the training set. Generate new trajectories
+        avg_action_error, avg_image_loss = fetch_push_control_evaluation(
+            encoder, fwd_model_encoder, fwd_model_decoder, decoder, dataset, config
+        )
+
+        ##########################################
+        # Logging metrics
+        ##########################################
+
         logging.info(
-            "{}, D: {:4f}, G: {:4f}, div: {:4f}".format(
-                epoch, D_loss_avg, G_loss_avg, pair_div_loss_avg
+            "{}, D: {:4f}, G: {:4f}, div: {:4f}, action_err: {:4f}, image_loss: {:4f}".format(
+                epoch,
+                D_loss_avg,
+                G_loss_avg,
+                pair_div_loss_avg,
+                avg_action_error,
+                avg_image_loss,
             )
         )
 
@@ -204,6 +240,12 @@ def train(config):
         display.plot(
             "pairwise_div", "loss", "Pairwise Divergence Loss", epoch, pair_div_loss_avg
         )
+        display.plot(
+            "avg_action_error", "error", "Average Action Error", epoch, avg_action_error
+        )
+        display.plot(
+            "avg_image_loss", "error", "Average Image Loss", epoch, avg_image_loss
+        )
 
         if epoch % epochs_per_stage == epochs_per_stage - 1:
 
@@ -211,9 +253,18 @@ def train(config):
                 os.makedirs("models/gan")
 
             torch.save(
-                discriminator, "models/gan/gan_discriminator_" + str(epoch) + ".pt"
+                discriminator,
+                os.path.join(
+                    config.gan_save_path, "gan_discriminator_{}.pt".format(str(epoch))
+                ),
             )
-            torch.save(decoder, "models/gan/gan_decoder_" + str(epoch) + ".pt")
+
+            torch.save(
+                decoder,
+                os.path.join(
+                    config.gan_save_path, "gan_decoder_{}.pt".format(str(epoch))
+                ),
+            )
 
 
 if __name__ == "__main__":
