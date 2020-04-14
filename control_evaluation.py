@@ -92,7 +92,6 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-
         images, states, actions = inputs
         images, states, actions = (
             images.float().to(gpu_id),
@@ -124,6 +123,8 @@ def fetch_push_control_evaluation(
         state_cur_fwd = state_cur[:, 0]
         image_error_sum = 0
         for image_num in range(dataset.seq_length - 1):
+            print(image_num)
+
             if image_num != dataset.seq_length - 2:
                 state_fut = state_cur[:, image_num + 1]
             else:
@@ -146,7 +147,7 @@ def fetch_push_control_evaluation(
         )
         # Cumulative action error with diverse samples
         action_error_sum += action_error
-
+        print(action_error_sum)
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
 
@@ -213,6 +214,6 @@ if __name__ == "__main__":
     # Run evaluation
     ################################################
 
-    avg_action_error, avg_image_loss = evaluate(
+    avg_action_error, avg_image_loss = fetch_push_control_evaluation(
         image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config
     )
