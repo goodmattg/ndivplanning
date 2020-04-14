@@ -2,11 +2,14 @@ random_seed: 0
 data_path: data
 gpu_id: 1
 log_port: 8081
+# Pretrained model paths
 forward_model_encoder_path: models/forward_model/forward_encoder.pt
 forward_model_decoder_path: models/forward_model/forward_decoder.pt
 image_encoder_model_path: models/image_autoencoder/encoder.pt
 gan_discriminator_model_path: models/gan/gan_discriminator.pt
 gan_decoder_model_path: models/gan/gan_decoder.pt
+# Model save paths
+gan_save_path: models/gan
 # Training parameters
 training:
   num_epochs: 100
@@ -23,4 +26,5 @@ training:
 evaluation:
   batch_size: 8
   num_sample: 1
-  noise_dim: 2  
+  noise_dim: 2
+  

@@ -34,7 +34,7 @@ def norm(image):
     return (image / 255.0 - 0.5) * 2.0
 
 
-def evaluate(
+def fetch_push_control_evaluation(
     image_encoder: torch.nn.Module,
     fwd_model_encoder: torch.nn.Module,
     fwd_model_decoder: torch.nn.Module,
