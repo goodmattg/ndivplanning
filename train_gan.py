@@ -72,7 +72,7 @@ def train(config):
     # Dataloader
     # FIXME: This messes up on server. Find a way to get working and uncomment.
     # gpu_id = torch.device(gpu_id if torch.cuda.is_available() else "cpu")
-    dataset = PushDataset(config.data_path, seq_length=16)
+    dataset = PushDataset(config.train_data_path, seq_length=16)
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Use pretrained image encoder

@@ -26,9 +26,21 @@ def add_common_arguments(parser: ArgumentParser) -> ArgumentParser:
     )
 
     core.add_argument(
-        "--data-path",
+        "--gan-save-path",
+        type=dir_exists_write_privileges,
+        help="GAN model storage directory path",
+    )
+
+    core.add_argument(
+        "--train-data-path",
         type=dir_exists_read_privileges,
-        help="Data file storage directory path",
+        help="Train data file storage directory path",
+    )
+
+    core.add_argument(
+        "--evaluation-data-path",
+        type=dir_exists_read_privileges,
+        help="Evaluation data file storage directory path",
     )
 
     core.add_argument(
