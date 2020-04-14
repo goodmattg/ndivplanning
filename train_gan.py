@@ -217,7 +217,7 @@ def train(config):
 
         # FIXME: This is currently evaluating on the training set. Generate new trajectories
         avg_action_error, avg_image_loss = fetch_push_control_evaluation(
-            encoder, fwd_model_encoder, fwd_model_decoder, decoder, loader, config
+            encoder, fwd_model_encoder, fwd_model_decoder, decoder, dataset, config
         )
 
         ##########################################

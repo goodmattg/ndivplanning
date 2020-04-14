@@ -39,7 +39,7 @@ def fetch_push_control_evaluation(
     fwd_model_encoder: torch.nn.Module,
     fwd_model_decoder: torch.nn.Module,
     generator: torch.nn.Module,
-    loader: torch.utils.data.DataLoader,
+    dataset: torch.utils.data.Dataset,
     config: DotMap,
 ):
     """Runs evaluation on the control task given models and a dataset
@@ -49,7 +49,7 @@ def fetch_push_control_evaluation(
         fwd_model_encoder: torch.nn.Module,
         fwd_model_decoder: torch.nn.Module,
         generator: torch.nn.Module,
-        loader: torch.utils.data.DataLoader,
+        dataset: torch.utils.data.Dataset,
 
     Outputs:
         avg_action_error: float
@@ -81,6 +81,10 @@ def fetch_push_control_evaluation(
         code = (code[:, None, :]).expand(-1, num_sample, -1)
         code = torch.cat([code, noise], dim=2)
         return code, noise
+
+    loader = data.DataLoader(
+        dataset, batch_size=config.evaluation.batch_size, shuffle=False
+    )
 
     # Initialize Loss
     l1, mse, bce = nn.L1Loss(), nn.MSELoss(), nn.BCELoss()
@@ -194,9 +198,6 @@ if __name__ == "__main__":
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     dataset = PushDataset(config.data_path, seq_length=16)
-    loader = data.DataLoader(
-        dataset, batch_size=config.evaluation.batch_size, shuffle=False
-    )
 
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
@@ -213,5 +214,5 @@ if __name__ == "__main__":
     ################################################
 
     avg_action_error, avg_image_loss = evaluate(
-        image_encoder, fwd_model_encoder, fwd_model_decoder, generator, loader, config
+        image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config
     )
