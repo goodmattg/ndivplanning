@@ -110,7 +110,11 @@ def train(config):
 
     min_pred_error = np.inf
     for epoch in range(num_epochs):
+
         D_loss_sum, G_loss_sum, pair_div_loss_sum = 0, 0, 0
+
+        discriminator.train()
+        decoder.train()
 
         for i, inputs in enumerate(loader):
             ########## Inputs ########
@@ -213,7 +217,7 @@ def train(config):
 
         # FIXME: This is currently evaluating on the training set. Generate new trajectories
         avg_action_error, avg_image_loss = fetch_push_control_evaluation(
-            encoder, fwd_model_encoder, fwd_model_decoder, generator, loader, config
+            encoder, fwd_model_encoder, fwd_model_decoder, decoder, loader, config
         )
 
         ##########################################
