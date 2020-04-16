@@ -58,15 +58,18 @@ class PushDataset(torch.utils.data.Dataset):
             states = torch.from_numpy(
                 seq["states"][self.seq_start : (self.seq_start + self.seq_length)]
             )
+
             actions = torch.from_numpy(
                 seq["actions"][self.seq_start : (self.seq_start + self.seq_length)]
             )
+
+            goal = torch.from_numpy(np.array(seq["goal"]))
 
             # Optional. Additional image transforms
             if self.transform:
                 images = self.transform(images)
 
-        return images, states, actions
+        return images, states, actions, goal
 
 
 if __name__ == "__main__":
@@ -90,11 +93,7 @@ if __name__ == "__main__":
     #     blah = batch[0]
     #     break
 
-    # print(blah.size())
-    # blah = blah.view(-1, *(blah.size()[2:]))
-    # print(blah.size())
-
-    images, states, actions = dataset.__getitem__(4)
+    images, states, actions, goal = dataset.__getitem__(4)
 
     grid_img = make_grid(images, nrow=5)
     plt.imshow(grid_img.permute(1, 2, 0))
