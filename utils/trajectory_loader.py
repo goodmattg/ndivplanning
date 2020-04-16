@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # blah = blah.view(-1, *(blah.size()[2:]))
     # print(blah.size())
 
-    images, states, actions = dataset.__getitem__(2)
+    images, states, actions = dataset.__getitem__(4)
 
     grid_img = make_grid(images, nrow=5)
     plt.imshow(grid_img.permute(1, 2, 0))
