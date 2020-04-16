@@ -93,11 +93,12 @@ def fetch_push_control_evaluation(
 
     for i, inputs in enumerate(loader):
 
-        images, states, actions = inputs
-        images, states, actions = (
+        images, states, actions, goal = inputs
+        images, states, actions, goal = (
             images.float().to(gpu_id),
             states.float().to(gpu_id),
             actions.float().to(gpu_id),
+            goal.float().to(gpu_id),
         )
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1

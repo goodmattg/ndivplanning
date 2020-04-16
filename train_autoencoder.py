@@ -72,7 +72,7 @@ min_pred_error = np.inf
 for epoch in range(num_epochs):
     for i, inputs in enumerate(loader):
         ########## Inputs ########
-        images, _, _ = inputs
+        images, _, _, _ = inputs
         images = images.to(gpu_id)
 
         # Flatten image trajectories to image batch

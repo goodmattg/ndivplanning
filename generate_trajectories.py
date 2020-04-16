@@ -41,6 +41,49 @@ def generate_trajectory(env, actor_network, args):
 
     """
     observation = env.reset()
+
+    # If we want a simpler task, place the object close to the gripper initial position with goal 'in front of' object
+    if args.simplify_task:
+
+        object_xpos = env.initial_gripper_xpos[:2].copy()
+
+        # Sample a random direction
+        theta = np.random.rand() * (2 * np.pi)
+        offset = np.array([np.cos(theta), np.sin(theta)])
+
+        # Account for object width
+        object_xpos = object_xpos + offset * 0.056
+
+        if args.goal_inline:
+            # Goal should explicitly be inline with object
+            env.env.goal = np.hstack(
+                [
+                    object_xpos.copy() + offset * np.random.uniform(0.1, 0.11),
+                    env.height_offset,
+                ]
+            )
+        else:
+            # Goal should be in front of object
+            goal_theta = np.random.uniform(theta - np.pi / 3, theta + np.pi / 3)
+
+            goal_offset = np.array(
+                [np.cos(goal_theta), np.sin(goal_theta)]
+            ) * np.random.uniform(0.16, 0.18)
+
+            env.env.goal = np.hstack(
+                [env.initial_gripper_xpos[:2].copy() + goal_offset, env.height_offset]
+            )
+
+        object_qpos = env.sim.data.get_joint_qpos("object0:joint")
+        assert object_qpos.shape == (7,)
+        object_qpos[:2] = object_xpos
+        env.env.sim.data.set_joint_qpos("object0:joint", object_qpos)
+
+        env.sim.forward()
+
+        # New observation with updated state
+        observation = env.env._get_obs()
+
     # start to do the demo
     obs = observation["observation"]
     g = observation["desired_goal"]
@@ -74,7 +117,7 @@ def generate_trajectory(env, actor_network, args):
         observation_new, reward, _, info = env.step(action)
         obs = observation_new["observation"]
 
-    return image_frames, states, actions
+    return image_frames, states, actions, observation["desired_goal"]
 
 
 if __name__ == "__main__":
@@ -88,6 +131,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--trajectory-length", type=int, default=20, help="the demo length"
     )
+
+    parser.add_argument("--simplify-task", dest="simplify_task", action="store_true")
+
+    parser.add_argument("--goal-inline", dest="goal_inline", action="store_true")
 
     parser.add_argument(
         "--pretrained_model_path",
@@ -134,6 +181,8 @@ if __name__ == "__main__":
         type=dir_exists_write_privileges,
         help="Data file storage directory path",
     )
+
+    parser.set_defaults(simplify_task=False, goal_inline=False)
 
     args = parser.parse_args()
 
@@ -201,7 +250,7 @@ if __name__ == "__main__":
                     ####################################
                     # Generate the trajectory
                     ####################################
-                    image_frames, states, actions = generate_trajectory(
+                    image_frames, states, actions, goal = generate_trajectory(
                         env, actor_network, args
                     )
 
@@ -249,6 +298,15 @@ if __name__ == "__main__":
 
                     action_ds.attrs["description"] = np.string_("action_tensor")
                     action_ds.attrs["shape"] = np.array(actions.shape, dtype="int32")
+
+                    goal_ds = file_group.create_dataset(
+                        "goal",
+                        (3,),
+                        dtype="float32",
+                        data=goal,
+                        compression="gzip",
+                        compression_opts=9,
+                    )
 
                 except Exception as e:
                     print(e)
