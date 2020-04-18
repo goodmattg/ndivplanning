@@ -27,8 +27,7 @@ from utils.cli_arguments.common_arguments import add_common_arguments
 from utils.argparse_util import override_dotmap
 from utils.file import make_paths_absolute
 
-rollouts = 5
-Th = 15
+
 def denorm(tensor):
     return ((tensor + 1.0) / 2.0) * 255.0
 
@@ -68,7 +67,8 @@ def fetch_push_control_evaluation(
     num_sample = config.evaluation.num_sample
     noise_dim = config.evaluation.noise_dim
     batch_size = config.evaluation.batch_size
-
+    rollouts = config.mpc.rollouts
+    Th = config.mpc.time_horizon
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     if torch.cuda.is_available():
