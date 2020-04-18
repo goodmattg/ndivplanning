@@ -83,7 +83,7 @@ for epoch in range(num_epochs):
     loss_np_sum = 0
 
     for i, inputs in enumerate(loader):
-        images, _, actions = inputs
+        images, _, actions, _ = inputs
         images, actions = images.to(gpu_id), actions.to(gpu_id)
 
         for image_num in range(dataset.seq_length - 1):
