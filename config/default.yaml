@@ -1,16 +1,16 @@
 random_seed: 0
-train_data_path: 128_128_data/
-evaluation_data_path: 128_128_data/
+train_data_path: data/train
+evaluation_data_path: data/eval
 gpu_id: 1
 log_port: 8081
 # Pretrained model paths
-forward_model_encoder_path: Models/forward_model/forward_encoder.pt
-forward_model_decoder_path: Models/forward_model/forward_decoder.pt
-image_encoder_model_path: Models/image_autoencoder/encoder.pt
-gan_discriminator_model_path: Models/gan/gan_discriminator.pt
-gan_decoder_model_path: Models/gan/gan_decoder.pt
+forward_model_encoder_path: models/forward_model/forward_encoder.pt
+forward_model_decoder_path: models/forward_model/forward_decoder.pt
+image_encoder_model_path: models/image_autoencoder/encoder.pt
+gan_discriminator_model_path: models/gan/gan_discriminator.pt
+gan_decoder_model_path: models/gan/gan_decoder.pt
 # Model save paths
-gan_save_path: Models/gan
+gan_save_path: models/gan
 # Training parameters
 training:
   num_epochs: 100
@@ -28,6 +28,7 @@ evaluation:
   batch_size: 8
   num_sample: 1
   noise_dim: 2
+#MPC parameters
 mpc:
   rollouts: 5
   time_horizon: 15 
