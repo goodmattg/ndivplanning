@@ -37,6 +37,16 @@ To generate trajectories with default arguments (1 file, 1000 trajectories for f
 python generate_trajectories.py
 ```
 
+Semi-random forward goal trajectories. Object is placed, goal then placed in pi/3 radius in front of object.
+```
+python generate_trajectories.py --trajectory-length 8 --num_trajectory_per_file 1000 --filename_start_idx 1 --num_files 20 --outdir data/forward_inline/train --image-shape 128 128 --simplify-task
+```
+
+Inline goal trajectories:
+```
+python generate_trajectories.py --trajectory-length 8 --num_trajectory_per_file 1000 --filename_start_idx 1 --num_files 20 --outdir data/forward_inline/train --image-shape 128 128 --simplify-task --goal-inline
+```
+
 ## View individual trajectory
 
 To view an individual trajectory:
