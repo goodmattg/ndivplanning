@@ -92,7 +92,6 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -104,26 +103,13 @@ def fetch_push_control_evaluation(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
 
-        state_cur_gan = state_cur.reshape(-1, *(state_cur.size()[2:]))
+        actions = actions[:,:-1,:]
 
-        state_target_gan = torch.repeat_interleave(
-            state_target.squeeze(dim=1), repeats=dataset.seq_length - 1, dim=0
-        )
-        actions_gan = actions[:, :-1].reshape(-1, actions.size()[-1])
-        state_codes = image_encoder(state_cur_gan).detach()
-        target_codes = image_encoder(state_target_gan).detach()
-
-        codes = torch.cat([state_codes, target_codes], dim=1).squeeze()
-
-        diverse_codes, noises = diverse_sampling(codes)
-        diverse_codes, noises = diverse_codes[..., None, None], noises[..., None, None]
-
-        actions = actions[:, :-1, :]
-
-        action_hat = generator(diverse_codes.view(-1, diverse_codes.size(2)))
-        action_hat = action_hat.view(batch_size, -1, 4)
-        state_cur_fwd = state_cur[:, 0]
+        state_cur_fwd = state_cur[:,0]
+        # print(state_cur_fwd.size())
         image_error_sum = 0
+        action_list = []
+
         for image_num in range(dataset.seq_length - 1):
             print(image_num)
 
@@ -132,9 +118,21 @@ def fetch_push_control_evaluation(
             else:
                 state_fut = state_target
             code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-            state_action_concate = torch.cat(
-                [code_fwd, action_hat[:, image_num]], dim=1
-            )
+            state_now = state_cur_fwd
+            target_now = state_target.squeeze(1)
+        
+            state_now_codes = image_encoder(state_now).detach()
+            target_now_codes = image_encoder(target_now).detach()
+            now_codes = torch.cat([state_now_codes, target_now_codes], dim=1).squeeze()
+
+            diverse_now_codes, now_noises = diverse_sampling(now_codes)
+            diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
+
+            action_now_hat = generator(diverse_now_codes.view(-1, diverse_now_codes.size(2)))
+            action_now_hat = action_now_hat.view(batch_size,-1,4)
+            action_list.append(action_now_hat)
+            
+            state_action_concate = torch.cat([code_fwd, action_now_hat.squeeze(1)], dim=1)
             state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
             state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
             state_cur_fwd = state_fut_hat
@@ -143,7 +141,7 @@ def fetch_push_control_evaluation(
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-
+        action_hat = torch.cat(action_list,dim=1)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )

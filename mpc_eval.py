@@ -1,3 +1,5 @@
+# eval_MPC
+
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -65,7 +67,8 @@ def fetch_push_control_evaluation(
     num_sample = config.evaluation.num_sample
     noise_dim = config.evaluation.noise_dim
     batch_size = config.evaluation.batch_size
-
+    rollouts = config.mpc.rollouts
+    Th = config.mpc.time_horizon
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     if torch.cuda.is_available():
@@ -92,7 +95,6 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -100,50 +102,73 @@ def fetch_push_control_evaluation(
             actions.float().to(gpu_id),
             goal.float().to(gpu_id),
         )
+        print(dataset.seq_length)
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
 
-        state_cur_gan = state_cur.reshape(-1, *(state_cur.size()[2:]))
+        actions = actions[:,:-1,:]
 
-        state_target_gan = torch.repeat_interleave(
-            state_target.squeeze(dim=1), repeats=dataset.seq_length - 1, dim=0
-        )
-        actions_gan = actions[:, :-1].reshape(-1, actions.size()[-1])
-        state_codes = image_encoder(state_cur_gan).detach()
-        target_codes = image_encoder(state_target_gan).detach()
-
-        codes = torch.cat([state_codes, target_codes], dim=1).squeeze()
-
-        diverse_codes, noises = diverse_sampling(codes)
-        diverse_codes, noises = diverse_codes[..., None, None], noises[..., None, None]
-
-        actions = actions[:, :-1, :]
-
-        action_hat = generator(diverse_codes.view(-1, diverse_codes.size(2)))
-        action_hat = action_hat.view(batch_size, -1, 4)
-        state_cur_fwd = state_cur[:, 0]
+        # print(state_cur_fwd.size())
         image_error_sum = 0
+        best_action_list = []
         for image_num in range(dataset.seq_length - 1):
             print(image_num)
-
             if image_num != dataset.seq_length - 2:
                 state_fut = state_cur[:, image_num + 1]
             else:
                 state_fut = state_target
-            code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-            state_action_concate = torch.cat(
-                [code_fwd, action_hat[:, image_num]], dim=1
-            )
-            state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-            state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
-            state_cur_fwd = state_fut_hat
 
-            image_error = mse(state_fut_hat, state_fut)
+            if image_num==0:
+                state_cur_mpc = state_cur[:,0]
+
+            min_error = 10000000000
+            
+            for ro in range(rollouts):
+                state_cur_fwd = state_cur_mpc
+
+                for ts in range(min(Th,dataset.seq_length -1 -image_num)):
+                    
+                    # getting action
+                    state_now = state_cur_fwd
+                    target_now = state_target.squeeze(1)
+                
+                    state_now_codes = image_encoder(state_now).detach()
+                    target_now_codes = image_encoder(target_now).detach()
+                    now_codes = torch.cat([state_now_codes, target_now_codes], dim=1).squeeze()
+
+                    diverse_now_codes, now_noises = diverse_sampling(now_codes)
+                    diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
+
+                    action_now_hat = generator(diverse_now_codes.view(-1, diverse_now_codes.size(2)))
+                    action_now_hat = action_now_hat.view(batch_size,-1,4)
+                    
+                    if ts==0:
+                        action_now_taken = action_now_hat
+                    #forward model
+                    code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
+                    state_action_concate = torch.cat([code_fwd, action_now_hat.squeeze(1)], dim=1)
+                    state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
+                    state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
+                    state_cur_fwd = state_fut_hat
+                    
+                err_now = mse(state_fut_hat,state_target)
+                if err_now<min_error:
+                    min_error = err_now
+                best_action_so_far = action_now_taken
+            
+            code_fwd, feats_fwd = fwd_model_encoder(state_cur_mpc)
+            state_action_concate = torch.cat([code_fwd, best_action_so_far.squeeze(1)], dim=1)
+            state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
+            state_cur_mpc = fwd_model_decoder(state_action_concate, feats_fwd)
+            best_action_list.append(best_action_so_far)
+
+            image_error = mse(state_cur_mpc, state_fut)
+
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-
+        action_hat = torch.cat(best_action_list,dim=1)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
@@ -159,30 +184,6 @@ def fetch_push_control_evaluation(
     return avg_action_error.item(), avg_image_loss.item()
 
 
-# EVALUATION WIHOUT FEEDBACK
-# 1. Load the dataset, load models: Encoder Action generator Forward_model
-# 2. separate the images from the target image
-# 3. Encode the state image (0 to the second last image) -> pass images to the encoder
-# 4. Generate actions: pass noise + encoding of target + encoding of state to the generator
-# 5. Pass action+state to forward model
-# 6. Get the next stage image
-# 7. Go to 3. {repeat for trajectory_length-1}
-# 8. Compare pixel wise distance b/w target and generated target image
-# 8. OR Compare action sequence with original actions
-
-
-# spectral normalization, lower number of
-
-
-# EVALUATION WITH TRUE FEEDBACK -> DISCUSS FURTHER
-# 1. Load the dataset, load models: Encoder Action generator Forward_model
-# 2. separate the images from the target image
-# 3. Encode the state image (0 to the second last image) -> pass images to the encoder
-# 4. Generate and record actions: pass noise + encoding of target + encoding of state to the generator
-# 5. Pass action+state to forward model
-# 6. Get the next stage image
-# 7. Go to 3. {repeat for trajectory_length-1}
-# 8. Calculate mean diff b/w Values of actions at each stage with ground truth
 
 if __name__ == "__main__":
 

@@ -28,4 +28,8 @@ evaluation:
   batch_size: 8
   num_sample: 1
   noise_dim: 2
+#MPC parameters
+mpc:
+  rollouts: 5
+  time_horizon: 15 
   
