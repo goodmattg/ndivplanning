@@ -48,16 +48,16 @@ def train(config):
 
     # Configurations and Hyperparameters
     random_seed = config.random_seed
-    lr_rate = config.training.learning_rate
-    num_epochs = config.training.num_epochs
-    num_sample = config.training.num_sample
-    noise_dim = config.training.noise_dim
-    report_feq = config.training.report_feq
-    batch_size = config.training.batch_size
+    lr_rate = config.training.gan.learning_rate
+    num_epochs = config.training.gan.num_epochs
+    num_sample = config.training.gan.num_sample
+    noise_dim = config.training.gan.noise_dim
+    report_feq = config.training.gan.report_feq
+    batch_size = config.training.gan.batch_size
     # Number of discriminator steps per generator step
-    discrim_steps_per_gen = config.training.discrim_steps_per_gen
+    discrim_steps_per_gen = config.training.gan.discrim_steps_per_gen
     # Number of training stages
-    epochs_per_stage = config.training.epochs_per_stage
+    epochs_per_stage = config.training.gan.epochs_per_stage
 
     gpu_id = gpu_id = torch.device(
         config.gpu_id if torch.cuda.is_available() else "cpu"
@@ -70,8 +70,6 @@ def train(config):
     display = visualizer(port=config.log_port)
 
     # Dataloader
-    # FIXME: This messes up on server. Find a way to get working and uncomment.
-    # gpu_id = torch.device(gpu_id if torch.cuda.is_available() else "cpu")
     dataset = PushDataset(config.train_data_path, seq_length=16)
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
@@ -250,8 +248,8 @@ def train(config):
 
         if epoch % epochs_per_stage == epochs_per_stage - 1:
 
-            if not os.path.exists("models/gan"):
-                os.makedirs("models/gan")
+            if not os.path.exists(config.gan_save_path):
+                os.makedirs(config.gan_save_path)
 
             torch.save(
                 discriminator,

@@ -20,9 +20,19 @@ def add_common_arguments(parser: ArgumentParser) -> ArgumentParser:
     core.add_argument("--gpu-id", type=int, help="GPU id for single gpu training")
 
     core.add_argument(
+        "--trajectory-length", type=int, help="Trajectory length to use for training"
+    )
+
+    core.add_argument(
         "--log-dir",
         type=dir_exists_write_privileges,
         help="Log file storage directory path",
+    )
+
+    core.add_argument(
+        "--forward-save-path",
+        type=dir_exists_write_privileges,
+        help="Forward model storage directory path",
     )
 
     core.add_argument(

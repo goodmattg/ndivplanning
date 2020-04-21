@@ -53,3 +53,8 @@ To view an individual trajectory:
 ```
 python -m utils.trajectory_loader _path_to_data_
 ```
+
+## Training the forward model
+```
+python train_forward_model.py --trajectory-length 8 --train-data-path forward_inline_data/train --gpu-id 2 --log-port 8081 --forward-save-path models/inline_task_forward
+```
