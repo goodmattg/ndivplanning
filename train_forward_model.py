@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
-from models.image_autoencoder import Decoder, Encoder
+from models.forward_encoder import Decoder, Encoder
 
 from argparse import ArgumentParser, ArgumentTypeError
 from utils.cli_arguments.common_arguments import add_common_arguments
