@@ -25,9 +25,9 @@ training:
     report_feq: 10
     batch_size: 8
     # Number of discriminator steps per generator step
-    discrim_steps_per_gen: 3
-    # Number of epochs per training stage  
-    epochs_per_stage: 25
+    discrim_steps_per_gen: 1
+    # Number of training stages
+    epochs_per_stage: 10
   # Forward Kinematic model
   forward:
     num_epochs: 30
