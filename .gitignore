@@ -106,6 +106,7 @@ ENV/
 *.gif
 *.png
 *.tiff
+*.jpg
 
 # Data files
 *.h5
