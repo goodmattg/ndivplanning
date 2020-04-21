@@ -53,6 +53,7 @@ def train(config):
     report_feq = config.training.forward.report_feq
     batch_size = config.training.forward.batch_size
     epochs_per_stage = config.training.forward.epochs_per_stage
+    gamma = config.training.forward.step_lr_gamma
 
     gpu_id = gpu_id = torch.device(
         config.gpu_id if torch.cuda.is_available() else "cpu"
@@ -84,9 +85,7 @@ def train(config):
         betas=(0.5, 0.999),
     )
 
-    torch.optim.lr_scheduler.StepLR(optimizer, step_size=epochs_per_stage, gamma=0.1)
-
-    pdb.set_trace()
+    torch.optim.lr_scheduler.StepLR(optimizer, step_size=epochs_per_stage, gamma=gamma)
 
     step = 0
     min_pred_error = np.inf
@@ -170,7 +169,5 @@ if __name__ == "__main__":
     config = override_dotmap(args, "config_file")
     # Converts all filepaths in keys ending with "_path" from relative to absolute filepath
     config = make_paths_absolute(os.getcwd(), config)
-
-    pdb.set_trace()
 
     train(config)

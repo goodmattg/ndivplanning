@@ -35,7 +35,8 @@ training:
     report_feq: 10
     batch_size: 8
     # Number of epochs per training stage  
-    epochs_per_stage: 10    
+    epochs_per_stage: 10
+    step_lr_gamma: 0.1  
 # Evaluation parameters
 evaluation:
   batch_size: 8
