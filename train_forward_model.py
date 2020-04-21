@@ -13,7 +13,7 @@ import os
 import numpy as np
 import pdb
 import matplotlib.pyplot as plt
-from PIL import Image
+import logging
 
 from torch import nn, optim
 from torch.utils import data
@@ -29,21 +29,12 @@ from tqdm import tqdm
 
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
-from models.forward_autoencoder import Decoder, Encoder
+from models.image_autoencoder import Decoder, Encoder
 
-# Configurations and Hyperparameters
-port_num = 8082
-gpu_id = 1
-lr_rate = 2e-4
-num_epochs = 30
-num_sample = 6
-noise_dim = 2
-report_feq = 10
-
-display = visualizer(port=port_num)
-
-torch.manual_seed(1)
-np.random.seed(1)
+from argparse import ArgumentParser, ArgumentTypeError
+from utils.cli_arguments.common_arguments import add_common_arguments
+from utils.argparse_util import override_dotmap
+from utils.file import make_paths_absolute
 
 
 def denorm(tensor):
@@ -54,77 +45,132 @@ def norm(image):
     return (image / 255.0 - 0.5) * 2.0
 
 
-# Dataloader
-# gpu_id = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-dataset = PushDataset("data", seq_length=12)
-loader = data.DataLoader(dataset, batch_size=8, shuffle=True)
+def train(config):
 
-# Models
-encoder = Encoder().to(gpu_id)
-decoder = Decoder().to(gpu_id)
-decoder.weight_init(mean=0.0, std=0.02)
-encoder.weight_init(mean=0.0, std=0.02)
+    random_seed = config.random_seed
+    lr_rate = config.training.forward.learning_rate
+    num_epochs = config.training.forward.num_epochs
+    report_feq = config.training.forward.report_feq
+    batch_size = config.training.forward.batch_size
+    epochs_per_stage = config.training.forward.epochs_per_stage
 
-# Initialize Loss
-mse = nn.MSELoss()
+    gpu_id = gpu_id = torch.device(
+        config.gpu_id if torch.cuda.is_available() else "cpu"
+    )
 
-# Initialize Optimizer
-optimizer = optim.Adam(
-    [{"params": decoder.parameters()}, {"params": encoder.parameters()}],
-    lr=lr_rate,
-    betas=(0.5, 0.999),
-)
+    # Random Initialization
+    torch.manual_seed(random_seed)
+    np.random.seed(random_seed)
 
-torch.optim.lr_scheduler.StepLR(optimizer, num_epochs // 3, gamma=0.1)
+    display = visualizer(port=config.log_port)
 
-step = 0
-min_pred_error = np.inf
-for epoch in range(num_epochs):
-    loss_np_sum = 0
+    # Dataloader
+    dataset = PushDataset(config.train_data_path, seq_length=config.trajectory_length)
+    loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    for i, inputs in enumerate(loader):
-        images, _, actions, _ = inputs
-        images, actions = images.to(gpu_id), actions.to(gpu_id)
+    # Models
+    encoder = Encoder().to(gpu_id)
+    decoder = Decoder().to(gpu_id)
+    decoder.weight_init(mean=0.0, std=0.02)
+    encoder.weight_init(mean=0.0, std=0.02)
 
-        for image_num in range(dataset.seq_length - 1):
-            state_cur = images[:, image_num]
-            state_fut = images[:, image_num + 1]
+    # Initialize Loss
+    mse = nn.MSELoss()
 
-            code, feats = encoder(state_cur)
-            state_action_concate = torch.cat([code, actions[:, image_num]], dim=1)
-            state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-            state_fut_hat = decoder(state_action_concate, feats)
+    # Initialize Optimizer
+    optimizer = optim.Adam(
+        [{"params": decoder.parameters()}, {"params": encoder.parameters()}],
+        lr=lr_rate,
+        betas=(0.5, 0.999),
+    )
 
-            loss = mse(state_fut_hat, state_fut)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    torch.optim.lr_scheduler.StepLR(optimizer, step_size=epochs_per_stage, gamma=0.1)
 
-            step += 1
-            loss_np = loss.cpu().data.numpy()
-            loss_np_sum += loss_np
+    pdb.set_trace()
 
-        if step % report_feq == 0:
-            state_cur_vis = [
-                denorm(state_cur[0]).detach().cpu().numpy().astype(np.uint8)
-            ]
-            state_fut_vis = [
-                denorm(state_fut[0]).detach().cpu().numpy().astype(np.uint8)
-            ]
-            state_fut_hat_vis = [
-                denorm(state_fut_hat[0]).detach().cpu().numpy().astype(np.uint8)
-            ]
-            display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
-            display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
-            display.img_result(state_fut_hat_vis, win=3, caption="state_fut_hat_vis")
+    step = 0
+    min_pred_error = np.inf
+    for epoch in range(num_epochs):
+        loss_np_sum = 0
 
-    # Log average epoch loss
-    avg_loss = loss_np_sum / ((dataset.seq_length - 1) * len(loader))
-    display.plot("loss", "train", "Forward Model Loss", epoch, avg_loss)
-    print(epoch, step, "reconstruction loss per epoch:", avg_loss)
+        for i, inputs in enumerate(loader):
+            images, _, actions, _ = inputs
+            images, actions = images.to(gpu_id), actions.to(gpu_id)
 
-    if epoch % (num_epochs // 3) == (num_epochs // 3) - 1:
-        if not os.path.exists("models"):
-            os.makedirs("models")
-        torch.save(encoder, "models/forward_encoder_" + str(epoch) + ".pt")
-        torch.save(decoder, "models/forward_decoder_" + str(epoch) + ".pt")
+            for image_num in range(dataset.seq_length - 1):
+                state_cur = images[:, image_num]
+                state_fut = images[:, image_num + 1]
+
+                code, feats = encoder(state_cur)
+                state_action_concate = torch.cat([code, actions[:, image_num]], dim=1)
+                state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
+                state_fut_hat = decoder(state_action_concate, feats)
+
+                loss = mse(state_fut_hat, state_fut)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                step += 1
+                loss_np = loss.cpu().data.numpy()
+                loss_np_sum += loss_np
+
+            if step % report_feq == 0:
+
+                state_cur_vis = [
+                    denorm(state_cur[0]).detach().cpu().numpy().astype(np.uint8)
+                ]
+                state_fut_vis = [
+                    denorm(state_fut[0]).detach().cpu().numpy().astype(np.uint8)
+                ]
+                state_fut_hat_vis = [
+                    denorm(state_fut_hat[0]).detach().cpu().numpy().astype(np.uint8)
+                ]
+                display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
+                display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
+                display.img_result(
+                    state_fut_hat_vis, win=3, caption="state_fut_hat_vis"
+                )
+
+        # Log average epoch loss
+        avg_loss = loss_np_sum / ((dataset.seq_length - 1) * len(loader))
+        display.plot("loss", "train", "Forward Model Loss", epoch, avg_loss)
+
+        logging.info(
+            "{}, {}: reconstruction loss per epoch: {}".format(epoch, step, avg_loss)
+        )
+
+        if epoch % epochs_per_stage == epochs_per_stage - 1:
+
+            if not os.path.exists(config.forward_save_path):
+                os.makedirs(config.forward_save_path)
+
+            torch.save(
+                encoder,
+                os.path.join(
+                    config.forward_save_path, "forward_encoder_{}.pt".format(str(epoch))
+                ),
+            )
+
+            torch.save(
+                decoder,
+                os.path.join(
+                    config.forward_save_path, "forward_decoder_{}.pt".format(str(epoch))
+                ),
+            )
+
+
+if __name__ == "__main__":
+
+    parser = ArgumentParser(description="Interact with your training script")
+    parser = add_common_arguments(parser)
+    args = parser.parse_args()
+
+    # Creates composite config from config file and CLI arguments
+    config = override_dotmap(args, "config_file")
+    # Converts all filepaths in keys ending with "_path" from relative to absolute filepath
+    config = make_paths_absolute(os.getcwd(), config)
+
+    pdb.set_trace()
+
+    train(config)
