@@ -103,9 +103,9 @@ def train(config):
                 code, feats = encoder(state_cur)
                 state_action_concate = torch.cat([code, actions[:, image_num]], dim=1)
                 state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-                state_fut_hat = decoder(state_action_concate, feats)
+                state_fut_resid_hat = decoder(state_action_concate, feats)
 
-                loss = mse(state_fut_hat, state_fut)
+                loss = mse(state_fut_resid_hat, state_fut - state_cur)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -122,13 +122,27 @@ def train(config):
                 state_fut_vis = [
                     denorm(state_fut[0]).detach().cpu().numpy().astype(np.uint8)
                 ]
+                state_fut_resid_hat_vis = [
+                    denorm(state_fut_resid_hat[0])
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.uint8)
+                ]
                 state_fut_hat_vis = [
-                    denorm(state_fut_hat[0]).detach().cpu().numpy().astype(np.uint8)
+                    denorm(state_fut_resid_hat[0] + state_cur[0])
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.uint8)
                 ]
                 display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
                 display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
                 display.img_result(
-                    state_fut_hat_vis, win=3, caption="state_fut_hat_vis"
+                    state_fut_resid_hat_vis, win=3, caption="state_fut_resid_hat_vis"
+                )
+                display.img_result(
+                    state_fut_hat_vis, win=4, caption="state_fut_hat_vis"
                 )
 
         # Log average epoch loss
