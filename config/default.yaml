@@ -11,18 +11,32 @@ gan_discriminator_model_path: models/gan/gan_discriminator.pt
 gan_decoder_model_path: models/gan/gan_decoder.pt
 # Model save paths
 gan_save_path: models/gan
+forward_save_path: models/forward_model
+# Default trajectory length for fully random task is 16. For semi-random & inline tasks, length is 8.
+trajectory_length: 16
 # Training parameters
 training:
-  num_epochs: 100
-  num_sample: 6
-  noise_dim: 2
-  learning_rate: 0.0002
-  report_feq: 10
-  batch_size: 8
-  # Number of discriminator steps per generator step
-  discrim_steps_per_gen: 3
-  # Number of training stages  
-  epochs_per_stage: 25
+  # GAN
+  gan:
+    num_epochs: 100
+    num_sample: 6
+    noise_dim: 2
+    learning_rate: 0.0002
+    report_feq: 10
+    batch_size: 8
+    # Number of discriminator steps per generator step
+    discrim_steps_per_gen: 1
+    # Number of training stages
+    epochs_per_stage: 10
+  # Forward Kinematic model
+  forward:
+    num_epochs: 30
+    learning_rate: 0.0002
+    report_feq: 10
+    batch_size: 8
+    # Number of epochs per training stage  
+    epochs_per_stage: 10
+    step_lr_gamma: 0.1  
 # Evaluation parameters
 evaluation:
   batch_size: 1

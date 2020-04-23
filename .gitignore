@@ -106,9 +106,14 @@ ENV/
 *.gif
 *.png
 *.tiff
+*.jpg
 
 # Data files
 *.h5
 
 # Notebooks
 *.ipynb
+
+# Bundles
+*.gz
+*.zip
