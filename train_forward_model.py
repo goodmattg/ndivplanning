@@ -29,18 +29,18 @@ from tqdm import tqdm
 
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
-from models.forward_autoencoder import Decoder, Encoder
+from models.forward_encoder import Decoder, Encoder
 
 # Configurations and Hyperparameters
 port_num = 8082
-gpu_id = 1
+gpu_id = 'cpu'
 lr_rate = 2e-4
 num_epochs = 30
 num_sample = 6
 noise_dim = 2
 report_feq = 10
 
-display = visualizer(port=port_num)
+# display = visualizer(port=port_num)
 
 torch.manual_seed(1)
 np.random.seed(1)
@@ -94,7 +94,7 @@ for epoch in range(num_epochs):
             state_action_concate = torch.cat([code, actions[:, image_num]], dim=1)
             state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
             state_fut_hat = decoder(state_action_concate, feats)
-
+            print(state_fut_hat)
             loss = mse(state_fut_hat, state_fut)
             optimizer.zero_grad()
             loss.backward()

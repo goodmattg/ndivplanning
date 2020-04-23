@@ -13,6 +13,21 @@ from utils.argparse_util import *
 from hindsight_experience_replay.rl_modules.models import actor
 
 # This is copied from hindsight_experience_replay demo.py
+
+import numpy as np
+import gym
+import matplotlib.pyplot as plt
+import torch
+import h5py
+import io
+
+from PIL import Image
+from dotmap import DotMap
+
+from utils.argparse_util import *
+from hindsight_experience_replay.rl_modules.models import actor
+
+# This is copied from hindsight_experience_replay demo.py
 def process_inputs(o, g, o_mean, o_std, g_mean, g_std, args):
     o_clip = np.clip(o, -args.clip_obs, args.clip_obs)
     g_clip = np.clip(g, -args.clip_obs, args.clip_obs)
@@ -73,6 +88,8 @@ def generate_trajectory(env, actor_network, args):
             env.env.goal = np.hstack(
                 [env.initial_gripper_xpos[:2].copy() + goal_offset, env.height_offset]
             )
+        
+        print("hiiiii",env.env.goal.shape)
 
         object_qpos = env.sim.data.get_joint_qpos("object0:joint")
         assert object_qpos.shape == (7,)
@@ -109,7 +126,7 @@ def generate_trajectory(env, actor_network, args):
         with torch.no_grad():
             pi = actor_network(inputs)
         action = pi.detach().numpy().squeeze()
-
+        print(action.shape)
         states[ix] = obs  # Store the state
         actions[ix] = action  # Store the action
 
