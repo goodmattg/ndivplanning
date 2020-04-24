@@ -58,3 +58,6 @@ python -m utils.trajectory_loader _path_to_data_
 ```
 python train_forward_model.py --trajectory-length 8 --train-data-path forward_inline_data/train --gpu-id 2 --log-port 8081 --forward-save-path models/inline_task_forward
 ```
+
+## Training the GAN
+python train_gan.py --trajectory-length 8 --train-data-path forward_inline_data/train --evaluation-data-path forward_inline_data/eval --gpu-id 2 --log-port 8081 --gan-save-path models/inline_task_gan
