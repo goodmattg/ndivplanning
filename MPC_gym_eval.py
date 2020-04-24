@@ -58,7 +58,7 @@ def image_from_state(state_cur_mpc,i,image_num):
     img_numpy = (img_numpy - np.min(img_numpy))/(np.max(img_numpy)-np.min(img_numpy))
     # print(np.min(img_numpy))
     file_name = "results/"+str(i)+"result"+str(image_num)+".png"
-    plt.imsave(file_name,img_numpy)
+    # plt.imsave(file_name,img_numpy)
 
 def get_state(env,args):
     image = render(env)
@@ -145,7 +145,7 @@ def fetch_push_control_evaluation(
     l1, mse, bce = nn.L1Loss(), nn.MSELoss(), nn.BCELoss()
     step = 0
     action_error_sum = 0
-
+    goal_error = []
     for i, inputs in enumerate(loader):
         images, states, actions, goal = inputs
         images, states, actions, goal = (
@@ -154,10 +154,12 @@ def fetch_push_control_evaluation(
             actions.float().to(gpu_id),
             goal.float().to(gpu_id),
         )
+        # print("goal",goal)
 
         env = controlled_reset(env,states,goal)
-        
-        
+        # obss = env.env._get_obs()
+        # print("desired goal",obss["desired_goal"])
+        # print("env.sim.data.get_joint_qpos",env.sim.data.get_joint_qpos("object0:joint")[:3])
         
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
@@ -230,20 +232,35 @@ def fetch_push_control_evaluation(
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
+        
+        obss = env.env._get_obs()
+        DG = obss["desired_goal"] # desired goal position
+        OP = env.sim.data.get_joint_qpos("object0:joint")[:3] # object position
+        dist_to_goal = np.sum((DG - OP)**2)**0.5
+        # print("desired goal",DG)
+        # print("env.sim.data.get_joint_qpos",OP)
+        print("results of trajectory ", i+1)
+        print("distance from the goal: ",dist_to_goal)
+        goal_error.append(dist_to_goal)
+        goal_error_arr = np.asarray(goal_error)
+        success_rate = np.sum(goal_error_arr<config.evaluation.threshold)/len(goal_error_arr)
+        print("success rate so far: ", success_rate)
         action_hat = torch.cat(best_action_list,dim=0)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
         # Cumulative action error with diverse samples
         action_error_sum += action_error
-        print(action_error_sum)
+        # print(action_error_sum)
+    avg_goal_error = sum(goal_error)/len(goal_error)
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
-
+    goal_error_arr = np.asarray(goal_error)
+    success_rate = np.sum(goal_error_arr<config.evaluation.threshold)/len(goal_error_arr)
     # logging.info("Average reconstruction loss:", avg_action_error)
     # logging.info("Average image loss", avg_image_loss)
 
-    return avg_action_error.item(), avg_image_loss.item()
+    return avg_action_error.item(), avg_image_loss.item(), avg_goal_error,success_rate
 
 
 
@@ -252,9 +269,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Interact with your training script")
     parser = add_common_arguments(parser)
 
-    parser.add_argument("--simplify-task", dest="simplify_task", action="store_true")
 
-    parser.add_argument("--goal-inline", dest="goal_inline", action="store_true")
 
     parser.add_argument(
             "--image-shape",
@@ -263,7 +278,6 @@ if __name__ == "__main__":
             default=(128, 128),
             help="Output image shape (WIDTH, HEIGHT) via PIL.Image.resize()",
         )
-    parser.set_defaults(simplify_task=False, goal_inline=False)
 
 
     args = parser.parse_args()
@@ -280,7 +294,6 @@ if __name__ == "__main__":
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     dataset = PushDataset(config.evaluation_data_path, seq_length=8)
-
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
 
@@ -318,6 +331,6 @@ if __name__ == "__main__":
     # Run evaluation
     ################################################
 
-    avg_action_error, avg_image_loss = fetch_push_control_evaluation(
+    avg_action_error, avg_image_loss, avg_goal_error, success_rate = fetch_push_control_evaluation(
         args,image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config,env
     )
