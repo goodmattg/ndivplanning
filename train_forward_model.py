@@ -112,7 +112,7 @@ def train(config):
 
                 step += 1
                 loss_np = loss.cpu().data.numpy()
-            loss_np_sum += loss_np
+                loss_np_sum += loss_np
 
             if step % report_feq == 0:
 
