@@ -59,9 +59,7 @@ def train(config):
     # Number of training stages
     epochs_per_stage = config.training.gan.epochs_per_stage
 
-    gpu_id = gpu_id = torch.device(
-        config.gpu_id if torch.cuda.is_available() else "cpu"
-    )
+    gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     # Random Initialization
     torch.manual_seed(random_seed)
@@ -70,7 +68,7 @@ def train(config):
     display = visualizer(port=config.log_port)
 
     # Dataloader
-    dataset = PushDataset(config.train_data_path, seq_length=16)
+    dataset = PushDataset(config.train_data_path, seq_length=config.trajectory_length)
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Use pretrained image encoder

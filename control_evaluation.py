@@ -125,7 +125,6 @@ def fetch_push_control_evaluation(
         state_cur_fwd = state_cur[:, 0]
         image_error_sum = 0
         for image_num in range(dataset.seq_length - 1):
-            print(image_num)
 
             if image_num != dataset.seq_length - 2:
                 state_fut = state_cur[:, image_num + 1]
@@ -149,7 +148,7 @@ def fetch_push_control_evaluation(
         )
         # Cumulative action error with diverse samples
         action_error_sum += action_error
-        print(action_error_sum)
+
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
 
@@ -200,7 +199,9 @@ if __name__ == "__main__":
     ################################################
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
-    dataset = PushDataset(config.evaluation_data_path, seq_length=16)
+    dataset = PushDataset(
+        config.evaluation_data_path, seq_length=config.trajectory_length
+    )
 
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
