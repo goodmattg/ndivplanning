@@ -59,9 +59,7 @@ def train(config):
     # Number of training stages
     epochs_per_stage = config.training.gan.epochs_per_stage
 
-    gpu_id = gpu_id = torch.device(
-        config.gpu_id if torch.cuda.is_available() else "cpu"
-    )
+    gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     # Random Initialization
     torch.manual_seed(random_seed)

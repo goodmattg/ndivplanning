@@ -29,7 +29,7 @@ from tqdm import tqdm
 
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
-from models.forward_encoder import Decoder, Encoder
+from models.forward_encoder import ForwardAutoencoder
 
 from argparse import ArgumentParser, ArgumentTypeError
 from utils.cli_arguments.common_arguments import add_common_arguments
@@ -55,9 +55,7 @@ def train(config):
     epochs_per_stage = config.training.forward.epochs_per_stage
     gamma = config.training.forward.step_lr_gamma
 
-    gpu_id = gpu_id = torch.device(
-        config.gpu_id if torch.cuda.is_available() else "cpu"
-    )
+    gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     # Random Initialization
     torch.manual_seed(random_seed)
@@ -69,18 +67,20 @@ def train(config):
     dataset = PushDataset(config.train_data_path, seq_length=config.trajectory_length)
     loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    # Models
-    encoder = Encoder().to(gpu_id)
-    decoder = Decoder().to(gpu_id)
-    decoder.weight_init(mean=0.0, std=0.02)
-    encoder.weight_init(mean=0.0, std=0.02)
+    # Model
+    forward_autoencoder = ForwardAutoencoder().to(gpu_id)
+    forward_autoencoder.decoder.weight_init(mean=0.0, std=0.02)
+    forward_autoencoder.encoder.weight_init(mean=0.0, std=0.02)
 
     # Initialize Loss
     mse = nn.MSELoss()
 
     # Initialize Optimizer
     optimizer = optim.Adam(
-        [{"params": decoder.parameters()}, {"params": encoder.parameters()}],
+        [
+            {"params": forward_autoencoder.decoder.parameters()},
+            {"params": forward_autoencoder.encoder.parameters()},
+        ],
         lr=lr_rate,
         betas=(0.5, 0.999),
     )
@@ -100,12 +100,11 @@ def train(config):
                 state_cur = images[:, image_num]
                 state_fut = images[:, image_num + 1]
 
-                code, feats = encoder(state_cur)
-                state_action_concate = torch.cat([code, actions[:, image_num]], dim=1)
-                state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-                state_fut_hat = decoder(state_action_concate, feats)
+                state_fut_resid_hat = forward_autoencoder(
+                    state_cur, actions[:, image_num]
+                )
 
-                loss = mse(state_fut_hat, state_fut)
+                loss = mse(state_fut_resid_hat, state_fut - state_cur)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -122,13 +121,27 @@ def train(config):
                 state_fut_vis = [
                     denorm(state_fut[0]).detach().cpu().numpy().astype(np.uint8)
                 ]
+                state_fut_resid_hat_vis = [
+                    denorm(state_fut_resid_hat[0])
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.uint8)
+                ]
                 state_fut_hat_vis = [
-                    denorm(state_fut_hat[0]).detach().cpu().numpy().astype(np.uint8)
+                    denorm(state_fut_resid_hat[0] + state_cur[0])
+                    .detach()
+                    .cpu()
+                    .numpy()
+                    .astype(np.uint8)
                 ]
                 display.img_result(state_cur_vis, win=1, caption="state_cur_vis")
                 display.img_result(state_fut_vis, win=2, caption="state_fut_vis")
                 display.img_result(
-                    state_fut_hat_vis, win=3, caption="state_fut_hat_vis"
+                    state_fut_resid_hat_vis, win=3, caption="state_fut_resid_hat_vis"
+                )
+                display.img_result(
+                    state_fut_hat_vis, win=4, caption="state_fut_hat_vis"
                 )
 
         # Log average epoch loss
@@ -145,16 +158,10 @@ def train(config):
                 os.makedirs(config.forward_save_path)
 
             torch.save(
-                encoder,
+                forward_autoencoder,
                 os.path.join(
-                    config.forward_save_path, "forward_encoder_{}.pt".format(str(epoch))
-                ),
-            )
-
-            torch.save(
-                decoder,
-                os.path.join(
-                    config.forward_save_path, "forward_decoder_{}.pt".format(str(epoch))
+                    config.forward_save_path,
+                    "forward_autoencoder_{}.pt".format(str(epoch)),
                 ),
             )
 

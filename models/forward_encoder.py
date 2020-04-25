@@ -96,21 +96,36 @@ class Decoder(nn.Module):
         return x_hat
 
 
+class ForwardAutoencoder(nn.Module):
+    def __init__(self):
+        super(ForwardAutoencoder, self).__init__()
+        self.encoder = Encoder()
+        self.decoder = Decoder()
+
+    def forward(self, state_cur, actions):
+        code, feats = self.encoder(state_cur)
+        state_action_concate = torch.cat([code, actions], dim=1)
+        state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
+        state_fut_resid_hat = self.decoder(state_action_concate, feats)
+
+        if self.training:
+            return state_fut_resid_hat
+        else:
+            return state_cur + state_fut_resid_hat
+
+
 if __name__ == "__main__":
 
-    gpu_id = 1
+    gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
     noise_dim = 16
     num_sample = 6
-    decoder = Decoder().to(gpu_id)
+
+    autoencoder = ForwardAutoencoder().to(gpu_id)
+    autoencoder.eval()
 
     state_cur = torch.ones((1, 3, 128, 128)).to(gpu_id)
-    encoder = Encoder().to(gpu_id)
-    codes, feats = encoder(state_cur)
-
     action = torch.ones((1, 4)).to(gpu_id)
 
-    state_action_codes = torch.cat([codes, action], dim=1)
-    state_action_codes = state_action_codes.unsqueeze(2).unsqueeze(3)
-    state_fut_hat = decoder(state_action_codes, feats)
+    autoencoder(state_cur, action)
 
     pdb.set_trace()
