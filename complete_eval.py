@@ -36,8 +36,7 @@ def norm(image):
 
 def fetch_push_control_evaluation(
     image_encoder: torch.nn.Module,
-    fwd_model_encoder: torch.nn.Module,
-    fwd_model_decoder: torch.nn.Module,
+    fwd_model_autoencoder: torch.nn.Module,
     generator: torch.nn.Module,
     dataset: torch.utils.data.Dataset,
     config: DotMap,
@@ -46,8 +45,7 @@ def fetch_push_control_evaluation(
     
     Inputs:
         image_encoder: torch.nn.Module,
-        fwd_model_encoder: torch.nn.Module,
-        fwd_model_decoder: torch.nn.Module,
+        fwd_model_autoencoder: torch.nn.Module,
         generator: torch.nn.Module,
         dataset: torch.utils.data.Dataset,
 
@@ -56,8 +54,7 @@ def fetch_push_control_evaluation(
         avg_image_loss: float
     """
     image_encoder.eval()
-    fwd_model_encoder.eval()
-    fwd_model_decoder.eval()
+    fwd_model_autoencoder.eval()
     generator.eval()
 
     # Configurations and Hyperparameters
@@ -92,6 +89,7 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
+        print("trajectory: ",i)
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -117,14 +115,15 @@ def fetch_push_control_evaluation(
                 state_fut = state_cur[:, image_num + 1]
             else:
                 state_fut = state_target
-            code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
             state_now = state_cur_fwd
             target_now = state_target.squeeze(1)
         
             state_now_codes = image_encoder(state_now).detach()
             target_now_codes = image_encoder(target_now).detach()
             now_codes = torch.cat([state_now_codes, target_now_codes], dim=1).squeeze()
-
+            
+            if batch_size==1:
+                now_codes = now_codes.unsqueeze(0)
             diverse_now_codes, now_noises = diverse_sampling(now_codes)
             diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
 
@@ -132,12 +131,11 @@ def fetch_push_control_evaluation(
             action_now_hat = action_now_hat.view(batch_size,-1,4)
             action_list.append(action_now_hat)
             
-            state_action_concate = torch.cat([code_fwd, action_now_hat.squeeze(1)], dim=1)
-            state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-            state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
+            state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_now_hat.squeeze(1))
             state_cur_fwd = state_fut_hat
 
             image_error = mse(state_fut_hat, state_fut)
+
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
@@ -198,16 +196,13 @@ if __name__ == "__main__":
     ################################################
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
-    dataset = PushDataset(config.evaluation_data_path, seq_length=16)
+    dataset = PushDataset(config.evaluation_data_path, seq_length=config.trajectory_length)
 
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
 
-    fwd_model_encoder = torch.load(
-        config.forward_model_encoder_path, map_location=gpu_id
-    )
-    fwd_model_decoder = torch.load(
-        config.forward_model_decoder_path, map_location=gpu_id
+    fwd_model_autoencoder = torch.load(
+        config.forward_model_autoencoder_path, map_location=gpu_id
     )
 
     ################################################
@@ -215,5 +210,5 @@ if __name__ == "__main__":
     ################################################
 
     avg_action_error, avg_image_loss = fetch_push_control_evaluation(
-        image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config
+        image_encoder, fwd_model_autoencoder, generator, dataset, config
     )

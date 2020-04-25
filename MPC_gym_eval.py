@@ -58,7 +58,7 @@ def image_from_state(state_cur_mpc,i,image_num):
     img_numpy = (img_numpy - np.min(img_numpy))/(np.max(img_numpy)-np.min(img_numpy))
     # print(np.min(img_numpy))
     file_name = "results/"+str(i)+"result"+str(image_num)+".png"
-    # plt.imsave(file_name,img_numpy)
+    plt.imsave(file_name,img_numpy)
 
 def get_state(env,args):
     image = render(env)
@@ -85,8 +85,7 @@ def controlled_reset(env,states,goal):
 def fetch_push_control_evaluation(
     args,
     image_encoder: torch.nn.Module,
-    fwd_model_encoder: torch.nn.Module,
-    fwd_model_decoder: torch.nn.Module,
+    fwd_model_autoencoder: torch.nn.Module,
     generator: torch.nn.Module,
     dataset: torch.utils.data.Dataset,
     config: DotMap,
@@ -110,8 +109,7 @@ def fetch_push_control_evaluation(
     
   
     image_encoder.eval()
-    fwd_model_encoder.eval()
-    fwd_model_decoder.eval()
+    fwd_model_autoencoder.eval()
     generator.eval()
 
     # Configurations and Hyperparameters
@@ -207,13 +205,10 @@ def fetch_push_control_evaluation(
                 if ts==0:
                     action_now_taken = action_now_hat
 
-                #forward model
-                code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-                state_action_concate = torch.cat([code_fwd, action_now_hat.squeeze(1)], dim=1)
-                state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-                state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
+
+                state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_now_hat.squeeze(1))
                 state_cur_fwd = state_fut_hat
-            
+                
             best_act_ind = 0
             for ro in range(rollouts):
                 err_now = mse(state_fut_hat[ro],state_target[0])
@@ -293,7 +288,7 @@ if __name__ == "__main__":
     ################################################
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
-    dataset = PushDataset(config.evaluation_data_path, seq_length=8)
+    dataset = PushDataset(config.evaluation_data_path, seq_length==config.trajectory_length)
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
 
@@ -302,6 +297,9 @@ if __name__ == "__main__":
     )
     fwd_model_decoder = torch.load(
         config.forward_model_decoder_path, map_location=gpu_id
+    )
+    fwd_model_autoencoder = torch.load(
+        config.forward_model_autoencoder_path, map_location=gpu_id
     )
     ######################################################################
     # Create and configure the environment
@@ -332,5 +330,5 @@ if __name__ == "__main__":
     ################################################
 
     avg_action_error, avg_image_loss, avg_goal_error, success_rate = fetch_push_control_evaluation(
-        args,image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config,env
+        args,image_encoder, fwd_model_autoencoder, generator, dataset, config,env
     )

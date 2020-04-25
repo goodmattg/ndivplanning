@@ -6,23 +6,36 @@ log_port: 8081
 # Pretrained model paths
 forward_model_encoder_path: Models/forward_model/forward_encoder.pt
 forward_model_decoder_path: Models/forward_model/forward_decoder.pt
+forward_model_autoencoder_path: Models/forward_model/forward_autoencoder.pt
 image_encoder_model_path: Models/image_autoencoder/encoder.pt
 gan_discriminator_model_path: Models/gan/gan_discriminator.pt
 gan_decoder_model_path: Models/gan/gan_decoder.pt
 # Model save paths
 gan_save_path: Models/gan
+forward_save_path: Models/forward_model
+trajectory_length: 8
 # Training parameters
 training:
-  num_epochs: 100
-  num_sample: 6
-  noise_dim: 2
-  learning_rate: 0.0002
-  report_feq: 10
-  batch_size: 8
-  # Number of discriminator steps per generator step
-  discrim_steps_per_gen: 3
-  # Number of training stages  
-  epochs_per_stage: 25
+  gan:
+    num_epochs: 100
+    num_sample: 6
+    noise_dim: 2
+    learning_rate: 0.0002
+    report_feq: 10
+    batch_size: 8
+    # Number of discriminator steps per generator step
+    discrim_steps_per_gen: 1
+    # Number of training stages
+    epochs_per_stage: 10
+  # Forward Kinematic model
+  forward:
+    num_epochs: 30
+    learning_rate: 0.0002
+    report_feq: 10
+    batch_size: 8
+    # Number of epochs per training stage  
+    epochs_per_stage: 10
+    step_lr_gamma: 0.1  
 # Evaluation parameters
 evaluation:
   batch_size: 1

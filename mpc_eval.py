@@ -38,8 +38,7 @@ def norm(image):
 
 def fetch_push_control_evaluation(
     image_encoder: torch.nn.Module,
-    fwd_model_encoder: torch.nn.Module,
-    fwd_model_decoder: torch.nn.Module,
+    fwd_model_autoencoder: torch.nn.Module,
     generator: torch.nn.Module,
     dataset: torch.utils.data.Dataset,
     config: DotMap,
@@ -48,8 +47,7 @@ def fetch_push_control_evaluation(
     
     Inputs:
         image_encoder: torch.nn.Module,
-        fwd_model_encoder: torch.nn.Module,
-        fwd_model_decoder: torch.nn.Module,
+        fwd_model_autoencoder: torch.nn.Module,
         generator: torch.nn.Module,
         dataset: torch.utils.data.Dataset,
 
@@ -58,8 +56,7 @@ def fetch_push_control_evaluation(
         avg_image_loss: float
     """
     image_encoder.eval()
-    fwd_model_encoder.eval()
-    fwd_model_decoder.eval()
+    fwd_model_autoencoder.eval()
     generator.eval()
 
     # Configurations and Hyperparameters
@@ -102,7 +99,7 @@ def fetch_push_control_evaluation(
             actions.float().to(gpu_id),
             goal.float().to(gpu_id),
         )
-        print(dataset.seq_length)
+        print("trajectory: ", i)
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
@@ -126,7 +123,6 @@ def fetch_push_control_evaluation(
             
             state_cur_fwd = state_cur_mpc
             state_cur_fwd = state_cur_fwd.repeat(rollouts,1,1,1)
-            print("ppppp", state_cur_fwd.size())
             
             for ts in range(min(Th,dataset.seq_length -1 -image_num)):
                 
@@ -144,15 +140,11 @@ def fetch_push_control_evaluation(
                 diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
                 action_now_hat = generator(diverse_now_codes.view(-1, diverse_now_codes.size(2)))
                 action_now_hat = action_now_hat.view(rollouts,-1,4)
-                print(action_now_hat.size())
                 if ts==0:
                     action_now_taken = action_now_hat
 
                 #forward model
-                code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-                state_action_concate = torch.cat([code_fwd, action_now_hat.squeeze(1)], dim=1)
-                state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-                state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
+                state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_now_hat.squeeze(1))
                 state_cur_fwd = state_fut_hat
             
             best_act_ind = 0
@@ -163,10 +155,8 @@ def fetch_push_control_evaluation(
                     best_act_ind = ro
             best_action_so_far = action_now_taken[best_act_ind]
             
-            code_fwd, feats_fwd = fwd_model_encoder(state_cur_mpc)
-            state_action_concate = torch.cat([code_fwd, best_action_so_far.squeeze(1)], dim=1)
-            state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-            state_cur_mpc = fwd_model_decoder(state_action_concate, feats_fwd)
+            state_cur_mpc = fwd_model_autoencoder(state_cur_mpc,best_action_so_far.squeeze(1))
+            
             best_action_list.append(best_action_so_far)
 
             image_error = mse(state_cur_mpc, state_fut)
@@ -174,7 +164,7 @@ def fetch_push_control_evaluation(
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-        action_hat = torch.cat(best_action_list,dim=1)
+        action_hat = torch.cat(best_action_list,dim=0)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
@@ -207,22 +197,20 @@ if __name__ == "__main__":
     ################################################
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
-    dataset = PushDataset(config.evaluation_data_path, seq_length=8)
+    dataset = PushDataset(config.evaluation_data_path, seq_length=config.trajectory_length)
 
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
 
-    fwd_model_encoder = torch.load(
-        config.forward_model_encoder_path, map_location=gpu_id
+    fwd_model_autoencoder = torch.load(
+        config.forward_model_autoencoder_path, map_location=gpu_id
     )
-    fwd_model_decoder = torch.load(
-        config.forward_model_decoder_path, map_location=gpu_id
-    )
+    
 
     ################################################
     # Run evaluation
     ################################################
 
     avg_action_error, avg_image_loss = fetch_push_control_evaluation(
-        image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config
+        image_encoder, fwd_model_autoencoder, generator, dataset, config
     )

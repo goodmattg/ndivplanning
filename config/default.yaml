@@ -7,13 +7,14 @@ log_port: 8081
 forward_model_encoder_path: models/forward_model/forward_encoder.pt
 forward_model_decoder_path: models/forward_model/forward_decoder.pt
 image_encoder_model_path: models/image_autoencoder/encoder.pt
+forward_model_autoencoder_path: models/forward_model/forward_autoencoder.pt
 gan_discriminator_model_path: models/gan/gan_discriminator.pt
 gan_decoder_model_path: models/gan/gan_decoder.pt
 # Model save paths
 gan_save_path: models/gan
 forward_save_path: models/forward_model
 # Default trajectory length for fully random task is 16. For semi-random & inline tasks, length is 8.
-trajectory_length: 16
+trajectory_length: 8
 # Training parameters
 training:
   # GAN
