@@ -89,7 +89,6 @@ def generate_trajectory(env, actor_network, args):
                 [env.initial_gripper_xpos[:2].copy() + goal_offset, env.height_offset]
             )
         
-        print("hiiiii",env.env.goal.shape)
 
         object_qpos = env.sim.data.get_joint_qpos("object0:joint")
         assert object_qpos.shape == (7,)
@@ -126,7 +125,6 @@ def generate_trajectory(env, actor_network, args):
         with torch.no_grad():
             pi = actor_network(inputs)
         action = pi.detach().numpy().squeeze()
-        print(action.shape)
         states[ix] = obs  # Store the state
         actions[ix] = action  # Store the action
 

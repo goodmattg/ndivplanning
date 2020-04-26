@@ -135,7 +135,6 @@ def fetch_push_control_evaluation(
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-            print(image_num)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
@@ -145,36 +144,12 @@ def fetch_push_control_evaluation(
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
 
-    # logging.info("Average reconstruction loss:", avg_action_error)
+    # logging.info("Average action reconstruction loss:", avg_action_error)
     # logging.info("Average image loss", avg_image_loss)
 
     return avg_action_error.item(), avg_image_loss.item()
 
 
-# EVALUATION WIHOUT FEEDBACK
-# 1. Load the dataset, load models: Encoder Action generator Forward_model
-# 2. separate the images from the target image
-# 3. Encode the state image (0 to the second last image) -> pass images to the encoder
-# 4. Generate actions: pass noise + encoding of target + encoding of state to the generator
-# 5. Pass action+state to forward model
-# 6. Get the next stage image
-# 7. Go to 3. {repeat for trajectory_length-1}
-# 8. Compare pixel wise distance b/w target and generated target image
-# 8. OR Compare action sequence with original actions
-
-
-# spectral normalization, lower number of
-
-
-# EVALUATION WITH TRUE FEEDBACK -> DISCUSS FURTHER
-# 1. Load the dataset, load models: Encoder Action generator Forward_model
-# 2. separate the images from the target image
-# 3. Encode the state image (0 to the second last image) -> pass images to the encoder
-# 4. Generate and record actions: pass noise + encoding of target + encoding of state to the generator
-# 5. Pass action+state to forward model
-# 6. Get the next stage image
-# 7. Go to 3. {repeat for trajectory_length-1}
-# 8. Calculate mean diff b/w Values of actions at each stage with ground truth
 
 if __name__ == "__main__":
 

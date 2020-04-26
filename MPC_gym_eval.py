@@ -56,7 +56,6 @@ def image_from_state(state_cur_mpc,i,image_num):
     temp = state_cur_mpc[0].permute(1,2,0)
     img_numpy = temp.numpy()
     img_numpy = (img_numpy - np.min(img_numpy))/(np.max(img_numpy)-np.min(img_numpy))
-    # print(np.min(img_numpy))
     file_name = "results/"+str(i)+"result"+str(image_num)+".png"
     plt.imsave(file_name,img_numpy)
 
@@ -152,12 +151,8 @@ def fetch_push_control_evaluation(
             actions.float().to(gpu_id),
             goal.float().to(gpu_id),
         )
-        # print("goal",goal)
 
         env = controlled_reset(env,states,goal)
-        # obss = env.env._get_obs()
-        # print("desired goal",obss["desired_goal"])
-        # print("env.sim.data.get_joint_qpos",env.sim.data.get_joint_qpos("object0:joint")[:3])
         
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
@@ -166,11 +161,9 @@ def fetch_push_control_evaluation(
         
         actions = actions[:,:-1,:]
 
-        # print(state_cur_fwd.size())
         image_error_sum = 0
         best_action_list = []
         for image_num in range(dataset.seq_length - 1):
-            print(image_num)
             if image_num != dataset.seq_length - 2:
                 state_fut = state_cur[:, image_num + 1]
             else:
@@ -201,7 +194,7 @@ def fetch_push_control_evaluation(
                 diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
                 action_now_hat = generator(diverse_now_codes.view(-1, diverse_now_codes.size(2)))
                 action_now_hat = action_now_hat.view(rollouts,-1,4)
-                # print(action_now_hat.size())
+
                 if ts==0:
                     action_now_taken = action_now_hat
 
@@ -231,22 +224,20 @@ def fetch_push_control_evaluation(
         obss = env.env._get_obs()
         DG = obss["desired_goal"] # desired goal position
         OP = env.sim.data.get_joint_qpos("object0:joint")[:3] # object position
+        
         dist_to_goal = np.sum((DG - OP)**2)**0.5
-        # print("desired goal",DG)
-        # print("env.sim.data.get_joint_qpos",OP)
-        print("results of trajectory ", i+1)
-        print("distance from the goal: ",dist_to_goal)
+        logging.info("results of trajectory ", i+1)
+        logging.info("distance from the goal: ",dist_to_goal)
         goal_error.append(dist_to_goal)
         goal_error_arr = np.asarray(goal_error)
         success_rate = np.sum(goal_error_arr<config.evaluation.threshold)/len(goal_error_arr)
-        print("success rate so far: ", success_rate)
+        logging.info("success rate so far: ", success_rate)
         action_hat = torch.cat(best_action_list,dim=0)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
         # Cumulative action error with diverse samples
         action_error_sum += action_error
-        # print(action_error_sum)
     avg_goal_error = sum(goal_error)/len(goal_error)
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))

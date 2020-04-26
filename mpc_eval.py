@@ -99,7 +99,7 @@ def fetch_push_control_evaluation(
             actions.float().to(gpu_id),
             goal.float().to(gpu_id),
         )
-        print("trajectory: ", i)
+        logging.info("trajectory: ", i)
         state_cur, state_target = torch.split(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
@@ -174,7 +174,7 @@ def fetch_push_control_evaluation(
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
 
-    # logging.info("Average reconstruction loss:", avg_action_error)
+    # logging.info("Average action reconstruction loss:", avg_action_error)
     # logging.info("Average image loss", avg_image_loss)
 
     return avg_action_error.item(), avg_image_loss.item()
