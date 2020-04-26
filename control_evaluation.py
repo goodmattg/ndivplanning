@@ -36,8 +36,7 @@ def norm(image):
 
 def fetch_push_control_evaluation(
     image_encoder: torch.nn.Module,
-    fwd_model_encoder: torch.nn.Module,
-    fwd_model_decoder: torch.nn.Module,
+    fwd_model_autoencoder: torch.nn.Module,
     generator: torch.nn.Module,
     dataset: torch.utils.data.Dataset,
     config: DotMap,
@@ -46,8 +45,7 @@ def fetch_push_control_evaluation(
     
     Inputs:
         image_encoder: torch.nn.Module,
-        fwd_model_encoder: torch.nn.Module,
-        fwd_model_decoder: torch.nn.Module,
+        fwd_model_autoencoder: torch.nn.Module,
         generator: torch.nn.Module,
         dataset: torch.utils.data.Dataset,
 
@@ -56,8 +54,7 @@ def fetch_push_control_evaluation(
         avg_image_loss: float
     """
     image_encoder.eval()
-    fwd_model_encoder.eval()
-    fwd_model_decoder.eval()
+    fwd_model_autoencoder.eval()
     generator.eval()
 
     # Configurations and Hyperparameters
@@ -92,7 +89,8 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-
+            
+        print("trajectory: ",i)
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -114,7 +112,6 @@ def fetch_push_control_evaluation(
         target_codes = image_encoder(state_target_gan).detach()
 
         codes = torch.cat([state_codes, target_codes], dim=1).squeeze()
-
         diverse_codes, noises = diverse_sampling(codes)
         diverse_codes, noises = diverse_codes[..., None, None], noises[..., None, None]
 
@@ -130,19 +127,14 @@ def fetch_push_control_evaluation(
                 state_fut = state_cur[:, image_num + 1]
             else:
                 state_fut = state_target
-            code_fwd, feats_fwd = fwd_model_encoder(state_cur_fwd)
-            state_action_concate = torch.cat(
-                [code_fwd, action_hat[:, image_num]], dim=1
-            )
-            state_action_concate = state_action_concate.unsqueeze(2).unsqueeze(3)
-            state_fut_hat = fwd_model_decoder(state_action_concate, feats_fwd)
+
+            state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_hat[:, image_num])
             state_cur_fwd = state_fut_hat
 
             image_error = mse(state_fut_hat, state_fut)
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
@@ -152,36 +144,12 @@ def fetch_push_control_evaluation(
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
 
-    # logging.info("Average reconstruction loss:", avg_action_error)
+    # logging.info("Average action reconstruction loss:", avg_action_error)
     # logging.info("Average image loss", avg_image_loss)
 
     return avg_action_error.item(), avg_image_loss.item()
 
 
-# EVALUATION WIHOUT FEEDBACK
-# 1. Load the dataset, load models: Encoder Action generator Forward_model
-# 2. separate the images from the target image
-# 3. Encode the state image (0 to the second last image) -> pass images to the encoder
-# 4. Generate actions: pass noise + encoding of target + encoding of state to the generator
-# 5. Pass action+state to forward model
-# 6. Get the next stage image
-# 7. Go to 3. {repeat for trajectory_length-1}
-# 8. Compare pixel wise distance b/w target and generated target image
-# 8. OR Compare action sequence with original actions
-
-
-# spectral normalization, lower number of
-
-
-# EVALUATION WITH TRUE FEEDBACK -> DISCUSS FURTHER
-# 1. Load the dataset, load models: Encoder Action generator Forward_model
-# 2. separate the images from the target image
-# 3. Encode the state image (0 to the second last image) -> pass images to the encoder
-# 4. Generate and record actions: pass noise + encoding of target + encoding of state to the generator
-# 5. Pass action+state to forward model
-# 6. Get the next stage image
-# 7. Go to 3. {repeat for trajectory_length-1}
-# 8. Calculate mean diff b/w Values of actions at each stage with ground truth
 
 if __name__ == "__main__":
 
@@ -206,11 +174,8 @@ if __name__ == "__main__":
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
 
-    fwd_model_encoder = torch.load(
-        config.forward_model_encoder_path, map_location=gpu_id
-    )
-    fwd_model_decoder = torch.load(
-        config.forward_model_decoder_path, map_location=gpu_id
+    fwd_model_autoencoder = torch.load(
+        config.forward_model_autoencoder_path, map_location=gpu_id
     )
 
     ################################################
@@ -218,5 +183,5 @@ if __name__ == "__main__":
     ################################################
 
     avg_action_error, avg_image_loss = fetch_push_control_evaluation(
-        image_encoder, fwd_model_encoder, fwd_model_decoder, generator, dataset, config
+        image_encoder, fwd_model_autoencoder, generator, dataset, config
     )
