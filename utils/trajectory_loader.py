@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dataset = PushDataset(args.datadir)
+    dataset = PushDataset(args.datadir, seq_length=20)
 
     # Dataloader
     loader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
@@ -95,6 +95,8 @@ if __name__ == "__main__":
 
     images, states, actions, goal = dataset.__getitem__(4)
 
-    grid_img = make_grid(images, nrow=5)
-    plt.imshow(grid_img.permute(1, 2, 0))
-    plt.show()
+    # grid_img = make_grid(images, nrow=5)
+    # plt.imshow(grid_img.permute(1, 2, 0))
+    # plt.show()
+
+    pdb.set_trace()
