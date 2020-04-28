@@ -298,7 +298,7 @@ if __name__ == "__main__":
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
     dataset = PushDataset(
-        config.evaluation_data_path, seq_length == config.trajectory_length
+        config.evaluation_data_path, seq_length=config.trajectory_length
     )
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
