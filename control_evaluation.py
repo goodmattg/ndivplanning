@@ -24,14 +24,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from utils.cli_arguments.common_arguments import add_common_arguments
 from utils.argparse_util import override_dotmap
 from utils.file import make_paths_absolute
-
-
-def denorm(tensor):
-    return ((tensor + 1.0) / 2.0) * 255.0
-
-
-def norm(image):
-    return (image / 255.0 - 0.5) * 2.0
+from utils.image_utils import norm, denorm
 
 
 def fetch_push_control_evaluation(
@@ -89,8 +82,8 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-            
-        print("trajectory: ",i)
+
+        print("trajectory: ", i)
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -128,7 +121,9 @@ def fetch_push_control_evaluation(
             else:
                 state_fut = state_target
 
-            state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_hat[:, image_num])
+            state_fut_hat = fwd_model_autoencoder(
+                state_cur_fwd, action_hat[:, image_num]
+            )
             state_cur_fwd = state_fut_hat
 
             image_error = mse(state_fut_hat, state_fut)
@@ -148,7 +143,6 @@ def fetch_push_control_evaluation(
     # logging.info("Average image loss", avg_image_loss)
 
     return avg_action_error.item(), avg_image_loss.item()
-
 
 
 if __name__ == "__main__":

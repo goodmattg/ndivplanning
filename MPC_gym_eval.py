@@ -21,7 +21,7 @@ from torch.utils import data
 from torch.nn import functional as F
 from data_utils import *
 from vis_tools import *
-from torchvision.utils import save_image
+from torchvision.utils import save_image, make_grid
 from utils.trajectory_loader import PushDataset
 from time import time
 from dotmap import DotMap
@@ -30,14 +30,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from utils.cli_arguments.common_arguments import add_common_arguments
 from utils.argparse_util import override_dotmap
 from utils.file import make_paths_absolute
-
-
-def denorm(tensor):
-    return ((tensor + 1.0) / 2.0) * 255.0
-
-
-def norm(image):
-    return (image / 255.0 - 0.5) * 2.0
+from utils.image_utils import norm, denorm
 
 
 def process_inputs(o, g, o_mean, o_std, g_mean, g_std, args):
@@ -56,12 +49,12 @@ def render(env):
 
 
 def save_image_from_state(state_cur_mpc, i, image_num):
-    temp = state_cur_mpc[0].permute(1, 2, 0)
-    img_numpy = temp.numpy()
-    img_numpy = (img_numpy - np.min(img_numpy)) / (
-        np.max(img_numpy) - np.min(img_numpy)
-    )
-    file_name = "results/" + str(i) + "result" + str(image_num) + ".png"
+    img = denorm(state_cur_mpc).type(torch.uint8)
+    img = img.permute(0, 2, 3, 1)
+    img = img.squeeze(0)
+    img_numpy = img.numpy()
+
+    file_name = "results/{}_result_{}.png".format(str(i), str(image_num))
     plt.imsave(file_name, img_numpy)
 
 
@@ -70,10 +63,12 @@ def get_state(env, args):
     im = Image.fromarray(image)
     im = im.resize(args.image_shape, Image.LANCZOS)
     _image = np.array(im)
-    # plt.imsave("temp2.png",_image)
+    # plt.imsave("results/temp2.png", _image)
     state_0 = torch.from_numpy(_image)
-    state_0 = state_0[np.newaxis, :]
+    state_0 = state_0.unsqueeze(0)
     state_0 = state_0.permute(0, 3, 1, 2)
+    state_0 = state_0.float()
+
     return norm(state_0)
 
 
@@ -243,14 +238,19 @@ def fetch_push_control_evaluation(
         OP = env.sim.data.get_joint_qpos("object0:joint")[:3]  # object position
 
         dist_to_goal = np.sum((DG - OP) ** 2) ** 0.5
-        logging.info("results of trajectory ", i + 1)
-        logging.info("distance from the goal: ", dist_to_goal)
+
+        logging.info("results of trajectory {}".format(i + 1))
+        logging.info("distance from the goal: {}".format(dist_to_goal))
+
         goal_error.append(dist_to_goal)
         goal_error_arr = np.asarray(goal_error)
+
         success_rate = np.sum(goal_error_arr < config.evaluation.threshold) / len(
             goal_error_arr
         )
-        logging.info("success rate so far: ", success_rate)
+
+        logging.info("success rate so far: {}".format(success_rate))
+
         action_hat = torch.cat(best_action_list, dim=0)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
@@ -303,12 +303,12 @@ if __name__ == "__main__":
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
 
-    fwd_model_encoder = torch.load(
-        config.forward_model_encoder_path, map_location=gpu_id
-    )
-    fwd_model_decoder = torch.load(
-        config.forward_model_decoder_path, map_location=gpu_id
-    )
+    # fwd_model_encoder = torch.load(
+    #     config.forward_model_encoder_path, map_location=gpu_id
+    # )
+    # fwd_model_decoder = torch.load(
+    #     config.forward_model_decoder_path, map_location=gpu_id
+    # )
     fwd_model_autoencoder = torch.load(
         config.forward_model_autoencoder_path, map_location=gpu_id
     )

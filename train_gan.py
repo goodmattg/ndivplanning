@@ -28,14 +28,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from utils.cli_arguments.common_arguments import add_common_arguments
 from utils.argparse_util import override_dotmap
 from utils.file import make_paths_absolute
-
-
-def denorm(tensor):
-    return ((tensor + 1.0) / 2.0) * 255.0
-
-
-def norm(image):
-    return (image / 255.0 - 0.5) * 2.0
+from utils.image_utils import norm, denorm
 
 
 def train(config):

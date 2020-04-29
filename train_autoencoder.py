@@ -22,6 +22,7 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR
 from utils.trajectory_loader import PushDataset
 from models.image_autoencoder import Decoder, Encoder
+from utils.image_utils import norm, denorm
 
 # Configurations and Hyperparameters
 port_num = 8082
@@ -37,14 +38,6 @@ display = visualizer(port=port_num)
 # Random Initialization
 torch.manual_seed(1)
 np.random.seed(1)
-
-
-def denorm(tensor):
-    return ((tensor + 1.0) / 2.0) * 255.0
-
-
-def norm(image):
-    return (image / 255.0 - 0.5) * 2.0
 
 
 # Dataloader

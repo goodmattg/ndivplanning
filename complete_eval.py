@@ -24,14 +24,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from utils.cli_arguments.common_arguments import add_common_arguments
 from utils.argparse_util import override_dotmap
 from utils.file import make_paths_absolute
-
-
-def denorm(tensor):
-    return ((tensor + 1.0) / 2.0) * 255.0
-
-
-def norm(image):
-    return (image / 255.0 - 0.5) * 2.0
+from utils.image_utils import norm, denorm
 
 
 def fetch_push_control_evaluation(
@@ -89,7 +82,7 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-        print("trajectory: ",i)
+        print("trajectory: ", i)
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -101,9 +94,9 @@ def fetch_push_control_evaluation(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
 
-        actions = actions[:,:-1,:]
+        actions = actions[:, :-1, :]
 
-        state_cur_fwd = state_cur[:,0]
+        state_cur_fwd = state_cur[:, 0]
         # print(state_cur_fwd.size())
         image_error_sum = 0
         action_list = []
@@ -117,21 +110,28 @@ def fetch_push_control_evaluation(
                 state_fut = state_target
             state_now = state_cur_fwd
             target_now = state_target.squeeze(1)
-        
+
             state_now_codes = image_encoder(state_now).detach()
             target_now_codes = image_encoder(target_now).detach()
             now_codes = torch.cat([state_now_codes, target_now_codes], dim=1).squeeze()
-            
-            if batch_size==1:
+
+            if batch_size == 1:
                 now_codes = now_codes.unsqueeze(0)
             diverse_now_codes, now_noises = diverse_sampling(now_codes)
-            diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
+            diverse_now_codes, now_noises = (
+                diverse_now_codes[..., None, None],
+                now_noises[..., None, None],
+            )
 
-            action_now_hat = generator(diverse_now_codes.view(-1, diverse_now_codes.size(2)))
-            action_now_hat = action_now_hat.view(batch_size,-1,4)
+            action_now_hat = generator(
+                diverse_now_codes.view(-1, diverse_now_codes.size(2))
+            )
+            action_now_hat = action_now_hat.view(batch_size, -1, 4)
             action_list.append(action_now_hat)
-            
-            state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_now_hat.squeeze(1))
+
+            state_fut_hat = fwd_model_autoencoder(
+                state_cur_fwd, action_now_hat.squeeze(1)
+            )
             state_cur_fwd = state_fut_hat
 
             image_error = mse(state_fut_hat, state_fut)
@@ -139,7 +139,7 @@ def fetch_push_control_evaluation(
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-        action_hat = torch.cat(action_list,dim=1)
+        action_hat = torch.cat(action_list, dim=1)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
@@ -196,7 +196,9 @@ if __name__ == "__main__":
     ################################################
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
-    dataset = PushDataset(config.evaluation_data_path, seq_length=config.trajectory_length)
+    dataset = PushDataset(
+        config.evaluation_data_path, seq_length=config.trajectory_length
+    )
 
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
