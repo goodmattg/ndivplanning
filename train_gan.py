@@ -275,6 +275,6 @@ if __name__ == "__main__":
     # Creates composite config from config file and CLI arguments
     config = override_dotmap(args, "config_file")
     # Converts all filepaths in keys ending with "_path" from relative to absolute filepath
-    config = make_paths_absolute(os.getcwd(), config)
+    config = make_paths_absolute(os.getcwd(), config, log_not_exist=True)
 
     train(config)
