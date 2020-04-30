@@ -257,11 +257,14 @@ def fetch_push_control_evaluation(
         )
         # Cumulative action error with diverse samples
         action_error_sum += action_error
+        avg_goal_error = sum(goal_error) / len(goal_error)
 
-    avg_goal_error = sum(goal_error) / len(goal_error)
+        logging.info("avg goal error: {}".format(avg_goal_error))
+
     avg_action_error = action_error_sum / ((dataset.seq_length - 1) * len(loader))
     avg_image_loss = image_error_sum / ((dataset.seq_length - 1) * len(loader))
     goal_error_arr = np.asarray(goal_error)
+
     success_rate = np.sum(goal_error_arr < config.evaluation.threshold) / len(
         goal_error_arr
     )
