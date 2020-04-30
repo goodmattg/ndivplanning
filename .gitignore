@@ -118,6 +118,7 @@ ENV/
 *.gz
 *.zip
 
-# configurations, except for default
+# configurations, data, except for default
+data/
 config/
 !config/default.yaml
