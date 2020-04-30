@@ -195,7 +195,9 @@ def train(config):
                 noises.squeeze(3).squeeze(3),
             )
 
-            total_loss = G_loss + training.gan.pairwise_div_factor * pair_div_loss
+            total_loss = (
+                G_loss + config.training.gan.pairwise_div_factor * pair_div_loss
+            )
             G_optimizer.zero_grad()
             total_loss.backward()
             G_optimizer.step()
