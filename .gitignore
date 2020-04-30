@@ -117,3 +117,7 @@ ENV/
 # Bundles
 *.gz
 *.zip
+
+# configurations, except for default
+config/
+!config/default.yaml
