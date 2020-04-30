@@ -215,22 +215,22 @@ def train(config):
         ##########################################
 
         # FIXME: This is currently evaluating on the training set. Generate new trajectories
-        avg_action_error, avg_image_loss = fetch_push_control_evaluation(
-            encoder, fwd_model_encoder, fwd_model_decoder, decoder, dataset, config
-        )
+        # avg_action_error, avg_image_loss = fetch_push_control_evaluation(
+        #     encoder, fwd_model_encoder, fwd_model_decoder, decoder, dataset, config
+        # )
 
         ##########################################
         # Logging metrics
         ##########################################
 
         logging.info(
-            "{}, D: {:4f}, G: {:4f}, div: {:4f}, action_err: {:4f}, image_loss: {:4f}".format(
+            "{}, D: {:4f}, G: {:4f}, div: {:4f}".format(
                 epoch,
                 D_loss_avg,
                 G_loss_avg,
                 pair_div_loss_avg,
-                avg_action_error,
-                avg_image_loss,
+                # avg_action_error,
+                # avg_image_loss,
             )
         )
 
@@ -239,12 +239,12 @@ def train(config):
         display.plot(
             "pairwise_div", "loss", "Pairwise Divergence Loss", epoch, pair_div_loss_avg
         )
-        display.plot(
-            "avg_action_error", "error", "Average Action Error", epoch, avg_action_error
-        )
-        display.plot(
-            "avg_image_loss", "error", "Average Image Loss", epoch, avg_image_loss
-        )
+        # display.plot(
+        #     "avg_action_error", "error", "Average Action Error", epoch, avg_action_error
+        # )
+        # display.plot(
+        #     "avg_image_loss", "error", "Average Image Loss", epoch, avg_image_loss
+        # )
 
         if epoch % epochs_per_stage == epochs_per_stage - 1:
 
