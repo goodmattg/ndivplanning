@@ -89,8 +89,8 @@ def fetch_push_control_evaluation(
     action_error_sum = 0
 
     for i, inputs in enumerate(loader):
-            
-        print("trajectory: ",i)
+
+        print("trajectory: ", i)
         images, states, actions, goal = inputs
         images, states, actions, goal = (
             images.float().to(gpu_id),
@@ -128,7 +128,9 @@ def fetch_push_control_evaluation(
             else:
                 state_fut = state_target
 
-            state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_hat[:, image_num])
+            state_fut_hat = fwd_model_autoencoder(
+                state_cur_fwd, action_hat[:, image_num]
+            )
             state_cur_fwd = state_fut_hat
 
             image_error = mse(state_fut_hat, state_fut)
@@ -150,7 +152,6 @@ def fetch_push_control_evaluation(
     return avg_action_error.item(), avg_image_loss.item()
 
 
-
 if __name__ == "__main__":
 
     parser = ArgumentParser(description="Interact with your training script")
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     # Creates composite config from config file and CLI arguments
     config = override_dotmap(namespace, "config_file")
     # Converts all filepaths in keys ending with "_path" from relative to absolute filepath
-    config = make_paths_absolute(os.getcwd(), config)
+    config = make_paths_absolute(os.getcwd(), config, log_not_exist=True)
 
     ################################################
     # Load pretrained models and dataset loader

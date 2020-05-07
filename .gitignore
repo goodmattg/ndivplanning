@@ -107,6 +107,7 @@ ENV/
 *.png
 *.tiff
 *.jpg
+*.pptx
 
 # Data files
 *.h5
@@ -117,3 +118,9 @@ ENV/
 # Bundles
 *.gz
 *.zip
+
+# configurations, data, except for default
+data/
+config/
+!config/default.yaml
+!docs/demo.gif

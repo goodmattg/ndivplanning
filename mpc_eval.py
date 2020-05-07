@@ -104,7 +104,7 @@ def fetch_push_control_evaluation(
             images, split_size_or_sections=[dataset.seq_length - 1, 1], dim=1
         )
 
-        actions = actions[:,:-1,:]
+        actions = actions[:, :-1, :]
 
         # print(state_cur_fwd.size())
         image_error_sum = 0
@@ -116,47 +116,58 @@ def fetch_push_control_evaluation(
             else:
                 state_fut = state_target
 
-            if image_num==0:
-                state_cur_mpc = state_cur[:,0]
+            if image_num == 0:
+                state_cur_mpc = state_cur[:, 0]
 
             min_error = 10000000000
-            
+
             state_cur_fwd = state_cur_mpc
-            state_cur_fwd = state_cur_fwd.repeat(rollouts,1,1,1)
-            
-            for ts in range(min(Th,dataset.seq_length -1 -image_num)):
-                
+            state_cur_fwd = state_cur_fwd.repeat(rollouts, 1, 1, 1)
+
+            for ts in range(min(Th, dataset.seq_length - 1 - image_num)):
+
                 # getting action
                 state_now = state_cur_fwd
                 target_now = state_target.squeeze(1)
-                
-                target_now = target_now.repeat(rollouts,1,1,1)
-            
+
+                target_now = target_now.repeat(rollouts, 1, 1, 1)
+
                 state_now_codes = image_encoder(state_now).detach()
                 target_now_codes = image_encoder(target_now).detach()
-                now_codes = torch.cat([state_now_codes, target_now_codes], dim=1).squeeze()
-                
+                now_codes = torch.cat(
+                    [state_now_codes, target_now_codes], dim=1
+                ).squeeze()
+
                 diverse_now_codes, now_noises = diverse_sampling(now_codes)
-                diverse_now_codes, now_noises = diverse_now_codes[..., None, None], now_noises[..., None, None]
-                action_now_hat = generator(diverse_now_codes.view(-1, diverse_now_codes.size(2)))
-                action_now_hat = action_now_hat.view(rollouts,-1,4)
-                if ts==0:
+                diverse_now_codes, now_noises = (
+                    diverse_now_codes[..., None, None],
+                    now_noises[..., None, None],
+                )
+                action_now_hat = generator(
+                    diverse_now_codes.view(-1, diverse_now_codes.size(2))
+                )
+                action_now_hat = action_now_hat.view(rollouts, -1, 4)
+                if ts == 0:
                     action_now_taken = action_now_hat
 
-                #forward model
-                state_fut_hat = fwd_model_autoencoder(state_cur_fwd,action_now_hat.squeeze(1))
+                # forward model
+                state_fut_hat = fwd_model_autoencoder(
+                    state_cur_fwd, action_now_hat.squeeze(1)
+                )
                 state_cur_fwd = state_fut_hat
-            
+
             best_act_ind = 0
             for ro in range(rollouts):
-                err_now = mse(state_fut_hat[ro],state_target[0])
-                if err_now<min_error:
+                err_now = mse(state_fut_hat[ro], state_target[0])
+                if err_now < min_error:
                     min_error = err_now
                     best_act_ind = ro
             best_action_so_far = action_now_taken[best_act_ind]
-            
-            state_cur_mpc = fwd_model_autoencoder(state_cur_mpc,best_action_so_far.squeeze(1))
-            
+
+            state_cur_mpc = fwd_model_autoencoder(
+                state_cur_mpc, best_action_so_far.squeeze(1)
+            )
+
             best_action_list.append(best_action_so_far)
 
             image_error = mse(state_cur_mpc, state_fut)
@@ -164,7 +175,7 @@ def fetch_push_control_evaluation(
             # Cumulative action error with diverse samples
             image_error_sum += image_error
             step += 1
-        action_hat = torch.cat(best_action_list,dim=0)
+        action_hat = torch.cat(best_action_list, dim=0)
         action_error = mse(
             torch.repeat_interleave(actions, repeats=num_sample, dim=1), action_hat
         )
@@ -180,7 +191,6 @@ def fetch_push_control_evaluation(
     return avg_action_error.item(), avg_image_loss.item()
 
 
-
 if __name__ == "__main__":
 
     parser = ArgumentParser(description="Interact with your training script")
@@ -190,14 +200,16 @@ if __name__ == "__main__":
     # Creates composite config from config file and CLI arguments
     config = override_dotmap(namespace, "config_file")
     # Converts all filepaths in keys ending with "_path" from relative to absolute filepath
-    config = make_paths_absolute(os.getcwd(), config)
+    config = make_paths_absolute(os.getcwd(), config, log_not_exist=True)
 
     ################################################
     # Load pretrained models and dataset loader
     ################################################
     gpu_id = torch.device(config.gpu_id if torch.cuda.is_available() else "cpu")
 
-    dataset = PushDataset(config.evaluation_data_path, seq_length=config.trajectory_length)
+    dataset = PushDataset(
+        config.evaluation_data_path, seq_length=config.trajectory_length
+    )
 
     image_encoder = torch.load(config.image_encoder_model_path, map_location=gpu_id)
     generator = torch.load(config.gan_decoder_model_path, map_location=gpu_id)
@@ -205,7 +217,6 @@ if __name__ == "__main__":
     fwd_model_autoencoder = torch.load(
         config.forward_model_autoencoder_path, map_location=gpu_id
     )
-    
 
     ################################################
     # Run evaluation

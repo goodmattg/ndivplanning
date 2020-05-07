@@ -30,7 +30,7 @@ def load_training_config_file(filename):
     return cfg
 
 
-def make_paths_absolute(dir_, cfg: DotMap) -> DotMap:
+def make_paths_absolute(dir_, cfg: DotMap, log_not_exist=False) -> DotMap:
     """
     Make all values for keys ending with `_path` absolute to dir_.
 
@@ -47,7 +47,7 @@ def make_paths_absolute(dir_, cfg: DotMap) -> DotMap:
         if key.endswith("_path") and dir_ not in cfg[key]:
             cfg[key] = os.path.join(dir_, cfg[key])
             cfg[key] = os.path.abspath(cfg[key])
-            if not os.path.isfile(cfg[key]):
+            if not os.path.isfile(cfg[key]) and log_not_exist:
                 logging.error("%s does not exist.", cfg[key])
         if type(cfg[key]) is DotMap:
             cfg[key] = make_paths_absolute(dir_, cfg[key])

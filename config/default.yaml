@@ -29,6 +29,8 @@ training:
     discrim_steps_per_gen: 1
     # Number of training stages
     epochs_per_stage: 10
+    # Pairwise divergence tradeoff
+    pairwise_div_factor: 0.1
   # Forward Kinematic model
   forward:
     num_epochs: 30
