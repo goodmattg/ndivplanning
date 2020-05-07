@@ -7,7 +7,7 @@ This is the repository for Saumya Shah and Matthew Goodman's ESE 650 Final Proje
 </p>
 
 
-Credit to Lingzhi and Andong Cao for sharing their code.
+Credit to Lingzhi Zhang and Andong Cao for sharing their code.
 
 ```
 @misc{zhang2019neural,
