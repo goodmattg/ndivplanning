@@ -123,3 +123,4 @@ ENV/
 data/
 config/
 !config/default.yaml
+!docs/demo.gif

@@ -1,4 +1,9 @@
-Repository for curiosity/generative planning/3d research
+This is the repository for Saumya Shah and Matthew Goodman's ESE 650 Final Project (2020).
+
+<p align="center">
+  <img src="docs/demo.gif">
+</p>
+
 
 Credit to Lingzhi and Andong Cao for sharing their code.
 
@@ -60,4 +65,6 @@ python train_forward_model.py --trajectory-length 8 --train-data-path forward_in
 ```
 
 ## Training the GAN
+```
 python train_gan.py --trajectory-length 8 --train-data-path forward_inline_data/train --evaluation-data-path forward_inline_data/eval --gpu-id 2 --log-port 8081 --gan-save-path models/inline_task_gan
+```
