@@ -1,3 +1,5 @@
+# Constrained Action-Space Representation for Physical Manipulation
+
 This is the repository for Saumya Shah and Matthew Goodman's ESE 650 Final Project (2020).
 
 <p align="center">
